@@ -45,6 +45,9 @@
       "dist/**/*",
       "electron/**/*"
     ],
+    "asarUnpack": [
+      "electron/bin/**/*"
+    ],
     "extraResources": [
       {
         "from": "electron/bin",

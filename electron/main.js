@@ -10,16 +10,78 @@ const __dirname = path.dirname(__filename);
 let mainWindow = null;
 
 function getYtDlpPath() {
-  const possiblePaths = [
-    path.join(__dirname, "bin", "yt-dlp.exe"),
-    path.join(process.resourcesPath, "bin", "yt-dlp.exe"),
-    path.join(process.resourcesPath, "electron", "bin", "yt-dlp.exe"),
-    path.join(app.getAppPath(), "electron", "bin", "yt-dlp.exe"),
-    path.join(__dirname, "..", "electron", "bin", "yt-dlp.exe"),
-  ];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) return p;
+  const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+
+  // 1. In local development, use repo electron/bin directly
+  if (isDev) {
+    const devPath = path.join(__dirname, "bin", "yt-dlp.exe");
+    if (fs.existsSync(devPath)) return devPath;
+    const devParent = path.join(__dirname, "..", "electron", "bin", "yt-dlp.exe");
+    if (fs.existsSync(devParent)) return devParent;
   }
+
+  // 2. Check standalone filesystem paths outside app.asar
+  const nonAsarPaths = [
+    path.join(process.resourcesPath, "bin", "yt-dlp.exe"),
+    path.join(process.resourcesPath, "app.asar.unpacked", "electron", "bin", "yt-dlp.exe"),
+    path.join(process.resourcesPath, "electron", "bin", "yt-dlp.exe"),
+    path.join(path.dirname(process.execPath), "resources", "bin", "yt-dlp.exe"),
+    path.join(path.dirname(process.execPath), "bin", "yt-dlp.exe"),
+  ];
+
+  for (const p of nonAsarPaths) {
+    if (!p.includes("app.asar") && fs.existsSync(p)) {
+      try {
+        if (fs.statSync(p).size > 1000000) {
+          return p;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 3. UserData persistent folder: guaranteed real filesystem path
+  const userDataBin = path.join(app.getPath("userData"), "bin", "yt-dlp.exe");
+  const userDataDir = path.dirname(userDataBin);
+
+  // If already extracted to userData and valid size, use it
+  if (fs.existsSync(userDataBin)) {
+    try {
+      if (fs.statSync(userDataBin).size > 1000000) {
+        return userDataBin;
+      }
+    } catch (e) {}
+  }
+
+  // 4. Extract from inside app.asar to userData folder if present in asar
+  const internalSources = [
+    path.join(__dirname, "bin", "yt-dlp.exe"),
+    path.join(app.getAppPath(), "electron", "bin", "yt-dlp.exe"),
+    path.join(process.resourcesPath, "bin", "yt-dlp.exe"),
+  ];
+
+  for (const src of internalSources) {
+    try {
+      if (fs.existsSync(src)) {
+        if (!fs.existsSync(userDataDir)) {
+          fs.mkdirSync(userDataDir, { recursive: true });
+        }
+        const buffer = fs.readFileSync(src);
+        if (buffer && buffer.length > 1000000) {
+          fs.writeFileSync(userDataBin, buffer);
+          console.log("Successfully extracted yt-dlp.exe to userData:", userDataBin);
+          return userDataBin;
+        }
+      }
+    } catch (extractErr) {
+      console.warn("Failed extracting yt-dlp from", src, extractErr);
+    }
+  }
+
+  // 5. If userData file exists at all, return it
+  if (fs.existsSync(userDataBin)) {
+    return userDataBin;
+  }
+
   return "yt-dlp";
 }
 
