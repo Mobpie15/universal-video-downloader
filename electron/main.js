@@ -148,7 +148,14 @@ ipcMain.handle("extract-media", async (event, url) => {
 
     proc.on("close", (code) => {
       if (code !== 0 && !stdout.trim()) {
-        return reject(new Error(stderr.trim() || "Failed to analyze video URL."));
+        const errText = stderr.trim();
+        if (errText.includes("Instagram sent an empty media response") || errText.includes("accessible in your browser without being logged-in")) {
+          return reject(new Error("Instagram is requiring login credentials for this Reel. Please check the link in your browser or try another video."));
+        }
+        if (errText.includes("Private video") || errText.includes("this video is private")) {
+          return reject(new Error("This video is set to private by the creator and cannot be accessed."));
+        }
+        return reject(new Error(errText || "Failed to analyze video URL."));
       }
 
       try {
@@ -376,6 +383,118 @@ ipcMain.handle("open-file", async (event, filePath) => {
 // IPC Handler: Get Version
 ipcMain.handle("get-version", () => {
   return app.getVersion();
+});
+
+// State for downloaded update
+let downloadedUpdatePath = null;
+
+// IPC Handler: Is Portable Executable
+ipcMain.handle("is-portable", () => {
+  return Boolean(process.env.PORTABLE_EXECUTABLE_FILE);
+});
+
+// IPC Handler: In-App Update Downloader
+ipcMain.handle("start-in-app-update", async (event, options = {}) => {
+  const downloadUrl = options.downloadUrl;
+  if (!downloadUrl) throw new Error("No download URL provided for update.");
+
+  const tempDir = app.getPath("temp");
+  const fileName = downloadUrl.split("/").pop()?.split("?")[0] || "Pie-Video-Downloader-Update.exe";
+  const destPath = path.join(tempDir, fileName);
+
+  const res = await fetch(downloadUrl, {
+    redirect: "follow",
+    headers: { "User-Agent": "PieVideoDownloader-InAppUpdater/1.2.0" },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Server returned HTTP ${res.status} while downloading update.`);
+  }
+
+  const totalBytes = parseInt(res.headers.get("content-length") || "0", 10);
+  const fileStream = fs.createWriteStream(destPath);
+  const reader = res.body.getReader();
+
+  let receivedBytes = 0;
+  let lastProgressTime = Date.now();
+  let lastReceivedBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      fileStream.write(Buffer.from(value));
+      receivedBytes += value.length;
+
+      const now = Date.now();
+      if (now - lastProgressTime >= 120) {
+        const timeDiff = (now - lastProgressTime) / 1000;
+        const bytesDiff = receivedBytes - lastReceivedBytes;
+        const speedMBps = timeDiff > 0 ? ((bytesDiff / (1024 * 1024)) / timeDiff).toFixed(1) : "0.0";
+        const percent = totalBytes > 0 ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100)) : 0;
+        const transferredMB = (receivedBytes / (1024 * 1024)).toFixed(1);
+        const totalMB = totalBytes > 0 ? (totalBytes / (1024 * 1024)).toFixed(1) : "Unknown";
+
+        event.sender.send("update-download-progress", {
+          percent,
+          speedMBps,
+          transferredMB,
+          totalMB,
+        });
+
+        lastProgressTime = now;
+        lastReceivedBytes = receivedBytes;
+      }
+    }
+  } finally {
+    await new Promise((resolve) => fileStream.end(resolve));
+  }
+
+  downloadedUpdatePath = destPath;
+  return {
+    success: true,
+    filePath: destPath,
+  };
+});
+
+// IPC Handler: Install and Restart
+ipcMain.handle("install-and-restart", async () => {
+  if (!downloadedUpdatePath || !fs.existsSync(downloadedUpdatePath)) {
+    throw new Error("Update binary not found on local disk.");
+  }
+
+  const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_FILE);
+  const portableTarget = process.env.PORTABLE_EXECUTABLE_FILE;
+
+  if (isPortable && portableTarget) {
+    const updaterBat = path.join(app.getPath("temp"), "pie-apply-portable-update.bat");
+    const batContent = `@echo off
+chcp 65001 > nul
+echo Updating Pie Video Downloader...
+timeout /t 2 /nobreak > nul
+copy /y "${downloadedUpdatePath.replace(/\\/g, "\\\\")}" "${portableTarget.replace(/\\/g, "\\\\")}" > nul
+start "" "${portableTarget.replace(/\\/g, "\\\\")}"
+del "${downloadedUpdatePath.replace(/\\/g, "\\\\")}" > nul 2>&1
+(goto) 2>nul & del "%~f0"
+`;
+    fs.writeFileSync(updaterBat, batContent, "utf8");
+    const batProc = spawn("cmd.exe", ["/c", updaterBat], {
+      detached: true,
+      stdio: "ignore",
+    });
+    batProc.unref();
+    app.quit();
+    return true;
+  } else {
+    // NSIS installer
+    const instProc = spawn(downloadedUpdatePath, ["/S"], {
+      detached: true,
+      stdio: "ignore",
+    });
+    instProc.unref();
+    app.quit();
+    return true;
+  }
 });
 
 app.whenReady().then(() => {

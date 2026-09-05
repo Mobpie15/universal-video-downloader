@@ -15,14 +15,29 @@ import { checkForUpdates, CURRENT_VERSION } from "../engine/updater.js";
 export const SettingsModal = ({ isOpen, onClose }) => {
   const [isChecking, setIsChecking] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState({ percent: 0, speedMBps: "0.0", transferredMB: "0", totalMB: "0" });
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [updateError, setUpdateError] = useState(null);
+
+  React.useEffect(() => {
+    if (window.electronAPI?.onUpdateProgress) {
+      const unsub = window.electronAPI.onUpdateProgress((data) => {
+        setUpdateProgress(data);
+      });
+      return unsub;
+    }
+  }, []);
 
   if (!isOpen) return null;
 
   const platform = getPlatformName();
+  const isElectron = Boolean(window.electronAPI?.isElectron && window.electronAPI?.startInAppUpdate);
 
   const handleCheckUpdate = async () => {
     setIsChecking(true);
     setUpdateInfo(null);
+    setUpdateError(null);
     try {
       const result = await checkForUpdates();
       setUpdateInfo(result);
@@ -40,9 +55,33 @@ export const SettingsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleOpenDownload = (url) => {
-    if (url) {
-      window.open(url, "_system");
+  const handleStartUpdate = async () => {
+    if (isElectron) {
+      setIsDownloading(true);
+      setUpdateError(null);
+      try {
+        const downloadUrl = updateInfo.downloadUrl || updateInfo.windowsInstallerUrl || updateInfo.windowsPortableUrl;
+        await window.electronAPI.startInAppUpdate({ downloadUrl });
+        setIsDownloading(false);
+        setIsRestarting(true);
+
+        setTimeout(async () => {
+          try {
+            await window.electronAPI.installAndRestart();
+          } catch (err) {
+            setUpdateError(err.message || "Failed to restart application");
+            setIsRestarting(false);
+          }
+        }, 1500);
+      } catch (err) {
+        setIsDownloading(false);
+        setUpdateError(err.message || "Update download failed");
+      }
+    } else {
+      const url = updateInfo?.downloadUrl || updateInfo?.releasesPage;
+      if (url) {
+        window.open(url, "_system");
+      }
     }
   };
 
@@ -210,37 +249,65 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                     style={{
                       background: "rgba(16, 185, 129, 0.12)",
                       border: "1px solid rgba(16, 185, 129, 0.3)",
-                      borderRadius: "10px",
-                      padding: "12px",
+                      borderRadius: "12px",
+                      padding: "14px",
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--accent-green)", fontWeight: 700, fontSize: "0.84rem", marginBottom: "4px" }}>
                       <CheckIcon size={16} />
                       <span>New Version v{updateInfo.latestVersion} Available!</span>
                     </div>
-                    <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", margin: "0 0 10px 0" }}>
+                    <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", margin: "0 0 10px 0", lineHeight: 1.4 }}>
                       {updateInfo.releaseNotes}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDownload(updateInfo.downloadUrl || updateInfo.releasesPage)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        background: "var(--accent-green)",
-                        color: "#FFFFFF",
-                        fontWeight: 700,
-                        fontSize: "0.8rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      <DownloadIcon size={14} />
-                      <span>Download Update (.apk)</span>
-                    </button>
+
+                    {isRestarting ? (
+                      <div style={{ textAlign: "center", padding: "8px 0", color: "var(--accent-green)", fontSize: "0.8rem", fontWeight: 700 }}>
+                        Applying update and restarting app...
+                      </div>
+                    ) : isDownloading ? (
+                      <div style={{ marginTop: "6px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.74rem", marginBottom: "4px", color: "var(--text-primary)" }}>
+                          <span>Downloading package...</span>
+                          <span style={{ fontWeight: 700, color: "var(--accent-cyan)" }}>{updateProgress.percent}%</span>
+                        </div>
+                        <div style={{ width: "100%", height: "6px", background: "rgba(255, 255, 255, 0.1)", borderRadius: "3px", overflow: "hidden", marginBottom: "6px" }}>
+                          <div style={{ width: `${updateProgress.percent}%`, height: "100%", background: "var(--accent-gradient)", transition: "width 0.2s" }} />
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                          <span>{updateProgress.transferredMB} MB / {updateProgress.totalMB} MB</span>
+                          <span>{updateProgress.speedMBps} MB/s</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleStartUpdate}
+                        style={{
+                          width: "100%",
+                          padding: "9px 12px",
+                          borderRadius: "9px",
+                          background: "var(--accent-green)",
+                          color: "#FFFFFF",
+                          fontWeight: 700,
+                          fontSize: "0.82rem",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <DownloadIcon size={14} />
+                        <span>{isElectron ? "Update App Now (Seamless)" : "Download Update (.apk)"}</span>
+                      </button>
+                    )}
+
+                    {updateError && (
+                      <div style={{ color: "var(--accent-red)", fontSize: "0.72rem", marginTop: "8px" }}>
+                        {updateError}
+                      </div>
+                    )}
                   </div>
                 ) : updateInfo.success ? (
                   <div

@@ -14,4 +14,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openFolder: (filePath) => ipcRenderer.invoke("open-folder", filePath),
   openFile: (filePath) => ipcRenderer.invoke("open-file", filePath),
   getVersion: () => ipcRenderer.invoke("get-version"),
+  isPortable: () => ipcRenderer.invoke("is-portable"),
+  startInAppUpdate: (options) => ipcRenderer.invoke("start-in-app-update", options),
+  installAndRestart: () => ipcRenderer.invoke("install-and-restart"),
+  onUpdateProgress: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on("update-download-progress", listener);
+    return () => ipcRenderer.removeListener("update-download-progress", listener);
+  },
 });

@@ -261,6 +261,6 @@ export const extractInstagram = async (url) => {
   }
 
   throw new Error(
-    "Unable to extract Instagram video. Please check if the link is public and active, or try another video."
+    "Instagram is currently requiring login authentication for this Reel. Please check if the link is public in your browser, or try YouTube, TikTok, Facebook, or Twitter videos."
   );
 };
