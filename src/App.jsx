@@ -135,12 +135,12 @@ export default function App() {
           )
         );
       },
-      onComplete: ({ success, path }) => {
+      onComplete: ({ success, path, blobUrl }) => {
         setDownloadingFormatId(null);
         setDownloadQueue((prev) =>
           prev.map((item) =>
             item.id === downloadId
-              ? { ...item, status: "completed", percent: 100, path: path || item.path }
+              ? { ...item, status: "completed", percent: 100, path: path || item.path, blobUrl: blobUrl || item.blobUrl }
               : item
           )
         );

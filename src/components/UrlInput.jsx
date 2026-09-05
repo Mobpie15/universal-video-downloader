@@ -311,81 +311,99 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
         </button>
       </div>
 
-      {/* Supported Platforms Grid */}
-      <div style={{ marginTop: "24px" }}>
+      {/* Sleek Platform Indicator Chips */}
+      <div style={{ marginTop: "20px" }}>
         <div
           style={{
-            fontSize: "0.76rem",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: "var(--text-secondary)",
-            marginBottom: "12px",
-            paddingLeft: "6px",
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "10px",
+            paddingLeft: "4px",
+            paddingRight: "4px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "var(--text-muted)",
+            }}
+          >
+            Universal Media Engine
+          </span>
+          <span
+            style={{
+              fontSize: "0.7rem",
+              color: "var(--accent-cyan)",
+              fontWeight: 600,
+              background: "rgba(56, 189, 248, 0.1)",
+              padding: "2px 8px",
+              borderRadius: "12px",
+              border: "1px solid rgba(56, 189, 248, 0.2)",
+            }}
+          >
+            HD 1080p &amp; 4K
+          </span>
+        </div>
+
+        {/* Elegant Minimalist Platform Pills */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
             gap: "8px",
           }}
         >
-          <span>Supported Platforms</span>
-          <div style={{ flex: 1, height: "1px", background: "rgba(255, 255, 255, 0.06)" }} />
-        </div>
+          {platforms.map((p) => {
+            const isMatch = currentPlatform === p.name.toLowerCase().split(" ")[0] || (p.name.includes("Twitter") && currentPlatform === "twitter");
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "10px",
-          }}
-        >
-          {platforms.map((p) => (
-            <div
-              key={p.name}
-              className="glass-panel glass-panel-hover"
-              style={{
-                borderRadius: "16px",
-                padding: "12px 10px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center",
-                gap: "6px",
-                cursor: "pointer",
-                border: "1px solid rgba(255, 255, 255, 0.07)",
-              }}
-              onClick={() => {
-                if (!url) handlePaste();
-              }}
-            >
-              <div
+            return (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => {
+                  if (!url) handlePaste();
+                }}
                 style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "11px",
-                  background: `radial-gradient(circle, ${p.glow} 0%, rgba(0,0,0,0) 70%)`,
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  color: p.color,
+                  gap: "7px",
+                  padding: "7px 12px",
+                  borderRadius: "12px",
+                  background: isMatch
+                    ? "rgba(56, 189, 248, 0.16)"
+                    : "rgba(255, 255, 255, 0.04)",
+                  border: isMatch
+                    ? "1px solid rgba(56, 189, 248, 0.45)"
+                    : "1px solid rgba(255, 255, 255, 0.07)",
+                  color: isMatch ? "#FFFFFF" : "var(--text-secondary)",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
                 }}
               >
-                {p.icon}
-              </div>
-              <span
-                style={{
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: "#FFFFFF",
-                  lineHeight: 1.1,
-                }}
-              >
-                {p.name}
-              </span>
-              <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", lineHeight: 1 }}>
-                {p.label}
-              </span>
-            </div>
-          ))}
+                <span
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    background: p.color,
+                    boxShadow: `0 0 8px ${p.color}`,
+                    flexShrink: 0,
+                  }}
+                />
+                <span>{p.name}</span>
+                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>
+                  ({p.label.split("&")[0].trim()})
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

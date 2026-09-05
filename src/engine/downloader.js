@@ -83,6 +83,50 @@ export class Downloader {
     const controller = new AbortController();
     this.activeDownloads.set(id, { controller, status: "downloading" });
 
+    let downloadTargetUrl = url;
+
+    // Check if the stream requires server-side generation
+    if (!downloadTargetUrl || downloadTargetUrl.includes("/api/download-file?id=")) {
+      try {
+        if (onProgress) {
+          onProgress({
+            percent: 5,
+            speedMBps: "Preparing...",
+            etaSeconds: 0,
+            downloadedBytes: 0,
+            totalBytes: 0,
+          });
+        }
+
+        const prepRes = await fetch("https://www.pietools.online/api/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: mediaUrl || url,
+            mode: isAudio ? "audio" : "video",
+            quality: resolution ? resolution.replace(/[^0-9]/g, "") || "720" : "720",
+            audioFormat: "mp3",
+            audioBitrate: "320",
+          }),
+          signal: controller.signal,
+        });
+
+        const prepData = await prepRes.json();
+        if (!prepData.success || !prepData.downloadUrl) {
+          throw new Error(
+            prepData.error ||
+              "YouTube is temporarily rate-limiting server processing. Please try another quality or use Desktop."
+          );
+        }
+        downloadTargetUrl = `https://www.pietools.online${prepData.downloadUrl}`;
+      } catch (prepErr) {
+        if (prepErr.name === "AbortError") return;
+        this.activeDownloads.delete(id);
+        if (onError) onError(prepErr);
+        return;
+      }
+    }
+
     const startTime = Date.now();
     let downloadedBytes = 0;
     let lastTime = startTime;
@@ -90,12 +134,12 @@ export class Downloader {
     let currentSpeedMBps = 0;
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(downloadTargetUrl, {
         signal: controller.signal,
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch media stream (HTTP ${response.status})`);
+        throw new Error(`Media stream returned HTTP ${response.status}`);
       }
 
       const contentLength = response.headers.get("Content-Length");
@@ -145,8 +189,10 @@ export class Downloader {
         }
       }
 
-      // Concatenate received chunks into Blob
-      const blob = new Blob(chunks);
+      // Concatenate received chunks into Blob with proper MIME type
+      const mimeType = isAudio ? "audio/mpeg" : "video/mp4";
+      const blob = new Blob(chunks, { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
       const cleanFileName = fileName.replace(/[\\/*?:"<>|]/g, "_");
 
       // Save to device storage (Android Downloads / PC file system)
@@ -163,6 +209,7 @@ export class Downloader {
           fileName: cleanFileName,
           size: downloadedBytes,
           path: saveResult.path,
+          blobUrl,
         });
       }
     } catch (err) {

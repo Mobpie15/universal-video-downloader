@@ -1,8 +1,8 @@
 /**
  * YouTube Multi-Tier Extractor
  * Tier 1: Desktop Native Engine (yt-dlp via Electron IPC bridge)
- * Tier 2: PieTools Cloud API (https://pietools.online/api/info)
- * Tier 3: OEmbed & Stream Resolver Fallback
+ * Tier 2: Official PieTools Media API (https://www.pietools.online/api/info)
+ * Tier 3: OEmbed Metadata Resolver Fallback
  */
 
 export const extractYouTube = async (url) => {
@@ -28,11 +28,11 @@ export const extractYouTube = async (url) => {
 
   // Tier 2: Official PieTools Media API
   try {
-    const pieRes = await fetch("https://pietools.online/api/info", {
+    const pieRes = await fetch("https://www.pietools.online/api/info", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (pieRes.ok) {
@@ -47,11 +47,13 @@ export const extractYouTube = async (url) => {
               formatId: `pie-v-${q.height}`,
               resolution: `${q.height}p HD`,
               ext: "mp4",
-              url: pieData.direct_stream_url || `https://pietools.online/api/download-file?id=${videoId}&q=${q.height}`,
+              url: pieData.direct_stream_url || "",
+              requiresServerDownload: !pieData.direct_stream_url,
+              qualityValue: String(q.height),
               hasAudio: true,
               hasVideo: true,
               type: "video",
-              label: q.label || `${q.height}p HD (MP4 Video)`,
+              label: q.label || `${q.height}p HD (Universal MP4)`,
             });
           }
         }
@@ -63,7 +65,9 @@ export const extractYouTube = async (url) => {
               formatId: `pie-a-${a.bitrate}`,
               resolution: `${a.bitrate}kbps`,
               ext: "mp3",
-              url: pieData.direct_stream_url || `https://pietools.online/api/download-file?id=${videoId}&a=${a.bitrate}`,
+              url: pieData.direct_stream_url || "",
+              requiresServerDownload: !pieData.direct_stream_url,
+              qualityValue: String(a.bitrate),
               hasAudio: true,
               hasVideo: false,
               type: "audio",
@@ -94,7 +98,7 @@ export const extractYouTube = async (url) => {
     const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
     const oembedRes = await fetch(oembedUrl, {
       headers: { "User-Agent": "Mozilla/5.0" },
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(5000),
     });
 
     if (oembedRes.ok) {
@@ -111,9 +115,11 @@ export const extractYouTube = async (url) => {
         formats: [
           {
             formatId: "yt-1080",
-            resolution: "1080p Full HD",
+            resolution: "1080p HD",
             ext: "mp4",
-            url: `https://pietools.online/api/download-file?id=${videoId}&q=1080`,
+            url: "",
+            requiresServerDownload: true,
+            qualityValue: "1080",
             hasAudio: true,
             hasVideo: true,
             type: "video",
@@ -123,7 +129,9 @@ export const extractYouTube = async (url) => {
             formatId: "yt-720",
             resolution: "720p HD",
             ext: "mp4",
-            url: `https://pietools.online/api/download-file?id=${videoId}&q=720`,
+            url: "",
+            requiresServerDownload: true,
+            qualityValue: "720",
             hasAudio: true,
             hasVideo: true,
             type: "video",
@@ -133,7 +141,9 @@ export const extractYouTube = async (url) => {
             formatId: "yt-360",
             resolution: "360p Data Saver",
             ext: "mp4",
-            url: `https://pietools.online/api/download-file?id=${videoId}&q=360`,
+            url: "",
+            requiresServerDownload: true,
+            qualityValue: "360",
             hasAudio: true,
             hasVideo: true,
             type: "video",
@@ -143,7 +153,9 @@ export const extractYouTube = async (url) => {
             formatId: "yt-audio-320",
             resolution: "320kbps",
             ext: "mp3",
-            url: `https://pietools.online/api/download-file?id=${videoId}&a=320`,
+            url: "",
+            requiresServerDownload: true,
+            qualityValue: "320",
             hasAudio: true,
             hasVideo: false,
             type: "audio",

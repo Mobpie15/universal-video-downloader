@@ -302,6 +302,15 @@ ipcMain.handle("open-folder", async (event, filePath) => {
   return true;
 });
 
+// IPC Handler: Open File in Default Player
+ipcMain.handle("open-file", async (event, filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
+    shell.openPath(filePath);
+    return true;
+  }
+  return false;
+});
+
 // IPC Handler: Get Version
 ipcMain.handle("get-version", () => {
   return app.getVersion();

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   DownloadIcon,
   CheckIcon,
@@ -9,6 +9,7 @@ import {
   ShareIcon,
   LibraryIcon,
   FolderIcon,
+  PlayIcon,
 } from "./icons/Icons.jsx";
 import { shareFile, showToast } from "../engine/nativeBridge.js";
 
@@ -19,6 +20,8 @@ export const DownloadQueue = ({
   onDeleteItem,
   isFullView = false,
 }) => {
+  const [activeMediaModal, setActiveMediaModal] = useState(null);
+
   if (!items) return null;
 
   const activeItems = items.filter((i) => i.status === "downloading");
@@ -26,12 +29,32 @@ export const DownloadQueue = ({
 
   const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI?.openFolder);
 
+  const handlePlayMedia = async (item) => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.openFile === "function" && item.path) {
+        const opened = await window.electronAPI.openFile(item.path);
+        if (opened) {
+          showToast("Opening in default player");
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Desktop openFile failed, falling back to in-app player:", e);
+    }
+
+    if (item.blobUrl || item.path) {
+      setActiveMediaModal(item);
+    } else {
+      showToast("Media source unavailable");
+    }
+  };
+
   const handleLocateFile = async (item) => {
     try {
       if (window.electronAPI && typeof window.electronAPI.openFolder === "function") {
         await window.electronAPI.openFolder(item.path);
       } else {
-        showToast("File saved to Downloads");
+        showToast(`Saved to Android Downloads: ${item.fileName}`);
       }
     } catch (e) {
       showToast("Unable to open folder");
@@ -43,7 +66,7 @@ export const DownloadQueue = ({
       await shareFile({
         title: item.title,
         text: `Watch: ${item.title}`,
-        url: item.path || "",
+        url: item.path || item.blobUrl || "",
       });
     } catch (e) {
       showToast("Unable to share file");
@@ -96,6 +119,170 @@ export const DownloadQueue = ({
 
   return (
     <div style={{ width: "100%", marginBottom: "24px" }}>
+      {/* In-App Media Player Modal */}
+      {activeMediaModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.88)",
+            backdropFilter: "blur(12px)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={() => setActiveMediaModal(null)}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "680px",
+              background: "#0E1526",
+              border: "1px solid rgba(56, 189, 248, 0.35)",
+              borderRadius: "20px",
+              overflow: "hidden",
+              boxShadow: "0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "16px 20px",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.92rem",
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: "80%",
+                }}
+              >
+                {activeMediaModal.title || activeMediaModal.fileName}
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveMediaModal(null)}
+                style={{
+                  color: "var(--text-muted)",
+                  padding: "6px",
+                  borderRadius: "8px",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  cursor: "pointer",
+                }}
+              >
+                <CloseIcon size={18} />
+              </button>
+            </div>
+
+            {/* Media Player */}
+            <div style={{ padding: "16px", background: "#050811" }}>
+              {activeMediaModal.fileName?.endsWith(".mp3") ? (
+                <div style={{ padding: "30px 20px", textAlign: "center" }}>
+                  <div
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                      borderRadius: "16px",
+                      background: "rgba(139, 92, 246, 0.16)",
+                      color: "var(--accent-purple)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 16px auto",
+                    }}
+                  >
+                    <AudioIcon size={30} />
+                  </div>
+                  <audio
+                    src={activeMediaModal.blobUrl || activeMediaModal.path}
+                    controls
+                    autoPlay
+                    style={{ width: "100%", outline: "none" }}
+                  />
+                </div>
+              ) : (
+                <video
+                  src={activeMediaModal.blobUrl || activeMediaModal.path}
+                  controls
+                  autoPlay
+                  playsInline
+                  style={{
+                    width: "100%",
+                    maxHeight: "65vh",
+                    borderRadius: "12px",
+                    outline: "none",
+                    backgroundColor: "#000000",
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div
+              style={{
+                padding: "12px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: "10px",
+                background: "rgba(255, 255, 255, 0.02)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handleLocateFile(activeMediaModal)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "10px",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  color: "#FFFFFF",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                <FolderIcon size={14} />
+                <span>Locate File</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleShare(activeMediaModal)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "10px",
+                  background: "var(--accent-gradient)",
+                  color: "#FFFFFF",
+                  fontSize: "0.8rem",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                <ShareIcon size={14} />
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Section Header */}
       <div
         style={{
@@ -156,6 +343,7 @@ export const DownloadQueue = ({
               background: "rgba(255, 255, 255, 0.04)",
               border: "1px solid rgba(255, 255, 255, 0.07)",
               transition: "all 0.2s ease",
+              cursor: "pointer",
             }}
           >
             <TrashIcon size={13} />
@@ -195,7 +383,7 @@ export const DownloadQueue = ({
                 <button
                   type="button"
                   onClick={() => onCancelDownload(item.id)}
-                  style={{ color: "var(--text-muted)", padding: "4px", borderRadius: "6px" }}
+                  style={{ color: "var(--text-muted)", padding: "4px", borderRadius: "6px", cursor: "pointer" }}
                   title="Cancel download"
                 >
                   <CloseIcon size={16} />
@@ -257,7 +445,7 @@ export const DownloadQueue = ({
                 className="glass-panel"
                 style={{
                   borderRadius: "16px",
-                  padding: "12px 14px",
+                  padding: "14px 16px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -268,8 +456,8 @@ export const DownloadQueue = ({
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
                   <div
                     style={{
-                      width: "38px",
-                      height: "38px",
+                      width: "40px",
+                      height: "40px",
                       borderRadius: "12px",
                       background: isSuccess
                         ? (isAudio ? "rgba(139, 92, 246, 0.16)" : "rgba(16, 185, 129, 0.16)")
@@ -293,7 +481,7 @@ export const DownloadQueue = ({
                     <div
                       style={{
                         fontWeight: 700,
-                        fontSize: "0.86rem",
+                        fontSize: "0.88rem",
                         color: "#FFFFFF",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
@@ -304,7 +492,7 @@ export const DownloadQueue = ({
                     </div>
                     <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", marginTop: "2px" }}>
                       {isSuccess ? (
-                        <span style={{ color: "var(--accent-green)", fontWeight: 600 }}>Saved to Device</span>
+                        <span style={{ color: "var(--accent-green)", fontWeight: 600 }}>Ready to Play</span>
                       ) : (
                         <span style={{ color: "var(--accent-red)", fontWeight: 600 }}>Download Failed</span>
                       )}
@@ -316,53 +504,80 @@ export const DownloadQueue = ({
                 {/* File action buttons */}
                 {isSuccess && (
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                    {isElectron ? (
-                      <button
-                        type="button"
-                        onClick={() => handleLocateFile(item)}
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: "10px",
-                          background: "rgba(56, 189, 248, 0.15)",
-                          border: "1px solid rgba(56, 189, 248, 0.35)",
-                          color: "var(--accent-cyan)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          fontSize: "0.74rem",
-                          fontWeight: 700,
-                          transition: "all 0.2s ease",
-                          cursor: "pointer",
-                        }}
-                        title="Locate in File Explorer"
-                      >
-                        <FolderIcon size={14} />
-                        <span>File Explorer</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleShare(item)}
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: "10px",
-                          background: "rgba(56, 189, 248, 0.12)",
-                          border: "1px solid rgba(56, 189, 248, 0.25)",
-                          color: "var(--accent-cyan)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "5px",
-                          fontSize: "0.74rem",
-                          fontWeight: 700,
-                          transition: "all 0.2s ease",
-                        }}
-                        title="Share to WhatsApp / Apps"
-                      >
-                        <ShareIcon size={13} />
-                        <span>Share</span>
-                      </button>
-                    )}
+                    {/* Primary Play Button */}
+                    <button
+                      type="button"
+                      onClick={() => handlePlayMedia(item)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "10px",
+                        background: "var(--accent-gradient)",
+                        color: "#FFFFFF",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "0.76rem",
+                        fontWeight: 700,
+                        transition: "all 0.2s ease",
+                        cursor: "pointer",
+                        border: "none",
+                        boxShadow: "0 2px 10px rgba(56, 189, 248, 0.3)",
+                      }}
+                      title="Play / Open video"
+                    >
+                      <PlayIcon size={13} />
+                      <span>Play</span>
+                    </button>
 
+                    {/* File Explorer / Locate Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleLocateFile(item)}
+                      style={{
+                        padding: "8px 11px",
+                        borderRadius: "10px",
+                        background: "rgba(56, 189, 248, 0.12)",
+                        border: "1px solid rgba(56, 189, 248, 0.25)",
+                        color: "var(--accent-cyan)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        fontSize: "0.74rem",
+                        fontWeight: 700,
+                        transition: "all 0.2s ease",
+                        cursor: "pointer",
+                      }}
+                      title={isElectron ? "Locate in File Explorer" : "File Explorer / Downloads"}
+                    >
+                      <FolderIcon size={14} />
+                      <span>{isElectron ? "Explorer" : "Locate"}</span>
+                    </button>
+
+                    {/* Share Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleShare(item)}
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: "10px",
+                        background: "rgba(255, 255, 255, 0.05)",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        color: "#FFFFFF",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "0.74rem",
+                        fontWeight: 600,
+                        transition: "all 0.2s ease",
+                        cursor: "pointer",
+                      }}
+                      title="Share Video"
+                    >
+                      <ShareIcon size={13} />
+                      <span>Share</span>
+                    </button>
+
+                    {/* Delete Button */}
                     {onDeleteItem && (
                       <button
                         type="button"
@@ -375,6 +590,7 @@ export const DownloadQueue = ({
                           color: "var(--text-muted)",
                           display: "flex",
                           alignItems: "center",
+                          cursor: "pointer",
                         }}
                         title="Delete from list"
                       >

@@ -1,9 +1,9 @@
 {
-  "version": "1.1.0",
-  "versionCode": 2,
+  "version": "1.1.1",
+  "versionCode": 3,
   "releaseDate": "2026-09-05",
-  "title": "Pie Video Downloader v1.1.0",
-  "releaseNotes": "Fix video playback corruption, direct File Explorer integration, startup update check, and Discord error reporting.",
-  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.1.0/Pie-Video-Downloader.apk",
+  "title": "Pie Video Downloader v1.1.1",
+  "releaseNotes": "Fix Instagram Reel extraction with direct high-speed CDN, fix YouTube downloader stream resolution, in-app video playback player, working File Explorer locate buttons, 100% transparent icon with zero black borders, and sleek minimalist UI overhaul.",
+  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.1.1/Pie-Video-Downloader.apk",
   "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases"
 }

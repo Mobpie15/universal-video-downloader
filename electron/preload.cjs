@@ -12,5 +12,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener(channel, listener);
   },
   openFolder: (filePath) => ipcRenderer.invoke("open-folder", filePath),
+  openFile: (filePath) => ipcRenderer.invoke("open-file", filePath),
   getVersion: () => ipcRenderer.invoke("get-version"),
 });
