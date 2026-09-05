@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Navbar } from "./components/Navbar.jsx";
 import { BottomNav } from "./components/BottomNav.jsx";
 import { UrlInput } from "./components/UrlInput.jsx";
@@ -156,6 +156,8 @@ export default function App() {
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Native App Bar */}
       <Navbar
+        activeTab={activeTab}
+        onSelectTab={handleTabSelect}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenDownloads={() => setActiveTab("downloads")}
         downloadsCount={downloadQueue.length}
@@ -165,10 +167,11 @@ export default function App() {
       <main
         style={{
           flex: 1,
-          maxWidth: "540px",
+          maxWidth: "920px",
           margin: "0 auto",
-          padding: "16px 16px 24px 16px",
+          padding: "20px 18px 32px 18px",
           width: "100%",
+          boxSizing: "border-box",
         }}
       >
         {activeTab === "downloader" ? (

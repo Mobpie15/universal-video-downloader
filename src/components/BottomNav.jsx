@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { HomeIcon, LibraryIcon, SettingsIcon } from "./icons/Icons.jsx";
 
 export const BottomNav = ({ activeTab, onSelectTab, downloadsCount = 0 }) => {
@@ -23,15 +23,16 @@ export const BottomNav = ({ activeTab, onSelectTab, downloadsCount = 0 }) => {
 
   return (
     <nav
+      className="mobile-only"
       style={{
         position: "fixed",
         bottom: 0,
         left: 0,
         right: 0,
         zIndex: 90,
-        backgroundColor: "rgba(11, 15, 25, 0.94)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
+        backgroundColor: "rgba(6, 9, 15, 0.92)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
         borderTop: "1px solid rgba(255, 255, 255, 0.08)",
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)",
         paddingTop: "6px",
@@ -63,8 +64,8 @@ export const BottomNav = ({ activeTab, onSelectTab, downloadsCount = 0 }) => {
                 gap: "3px",
                 padding: "6px 8px",
                 borderRadius: "12px",
-                background: isActive ? "rgba(239, 68, 68, 0.12)" : "transparent",
-                color: isActive ? "var(--accent-red)" : "var(--text-muted)",
+                background: isActive ? "rgba(56, 189, 248, 0.12)" : "transparent",
+                color: isActive ? "var(--accent-cyan)" : "var(--text-muted)",
                 position: "relative",
                 transition: "all 0.2s ease",
               }}
@@ -81,7 +82,8 @@ export const BottomNav = ({ activeTab, onSelectTab, downloadsCount = 0 }) => {
                       height: "16px",
                       padding: "0 4px",
                       borderRadius: "10px",
-                      background: "var(--accent-red)",
+                      background: "var(--accent-gradient)",
+                      boxShadow: "0 2px 8px rgba(56, 189, 248, 0.5)",
                       color: "#FFFFFF",
                       fontSize: "0.65rem",
                       fontWeight: 700,

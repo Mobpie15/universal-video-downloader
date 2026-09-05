@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
+    "@electron/asar": "^4.3.0",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^31.3.1",
     "electron-builder": "^26.15.3",
@@ -48,12 +49,17 @@
       {
         "from": "electron/bin",
         "to": "bin",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "icon": "electron/icon.ico",
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     }
   }
 }

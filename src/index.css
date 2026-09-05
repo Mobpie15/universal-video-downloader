@@ -1,21 +1,25 @@
 :root {
-  --bg-primary: #0A0E17;
-  --bg-card: #131B2C;
-  --bg-input: #1A243B;
-  --bg-hover: #22304D;
+  --bg-primary: #06090F;
+  --bg-secondary: #0D131F;
+  --bg-card: rgba(15, 23, 42, 0.72);
+  --bg-card-solid: #0F172A;
+  --bg-input: rgba(18, 28, 48, 0.85);
+  --bg-hover: rgba(30, 48, 80, 0.6);
   --border: rgba(255, 255, 255, 0.08);
-  --border-focus: #EF4444;
+  --border-highlight: rgba(56, 189, 248, 0.35);
   --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
-  --accent-red: #EF4444;
-  --accent-red-hover: #DC2626;
-  --accent-cyan: #06B6D4;
-  --accent-green: #10B981;
-  --accent-purple: #8B5CF6;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --accent-cyan: #38BDF8;
+  --accent-blue: #2563EB;
+  --accent-gradient: linear-gradient(135deg, #2563EB 0%, #0284C7 50%, #38BDF8 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #1D4ED8 0%, #0369A1 50%, #0284C7 100%);
+  --glow-cyan: 0 0 24px rgba(56, 189, 248, 0.28);
+  --glow-blue: 0 0 28px rgba(37, 99, 235, 0.35);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', "Segoe UI", Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -36,6 +40,11 @@ input, textarea {
 
 body {
   background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.5) 0%, transparent 100%);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -43,7 +52,7 @@ body {
   flex-direction: column;
   overflow-x: hidden;
   line-height: 1.5;
-  padding-bottom: 72px; /* space for bottom nav */
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Custom Scrollbars */
@@ -52,20 +61,26 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Animations */
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.95); }
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+    border-color: rgba(56, 189, 248, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.45);
+    border-color: rgba(56, 189, 248, 0.7);
+  }
 }
 
 @keyframes spin {
@@ -73,12 +88,36 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 .animate-spin {
-  animation: spin 1s linear infinite;
+  animation: spin 0.9s linear infinite;
 }
 
 .animate-pulse {
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}
+
+/* Glassmorphic Utilities */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-hover:hover {
+  border-color: var(--border-highlight);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.15);
 }
 
 button {
@@ -86,13 +125,36 @@ button {
   border: none;
   background: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 button:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 input {
   font-family: inherit;
 }
+
+/* Responsive Container Adjustments */
+@media (min-width: 768px) {
+  body {
+    padding-bottom: 24px; /* No bottom nav needed on large screens */
+  }
+  .mobile-only {
+    display: none !important;
+  }
+  .desktop-only {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 80px; /* Space for bottom nav */
+  }
+  .desktop-only {
+    display: none !important;
+  }
+}
+

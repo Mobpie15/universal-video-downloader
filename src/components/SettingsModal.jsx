@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   CloseIcon,
   FolderIcon,
@@ -104,11 +104,12 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                 width: "32px",
                 height: "32px",
                 borderRadius: "9px",
-                background: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+                background: "var(--accent-gradient)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 color: "#FFFFFF",
+                boxShadow: "0 4px 14px rgba(56, 189, 248, 0.35)",
               }}
             >
               <DownloadIcon size={16} />
@@ -140,12 +141,12 @@ export const SettingsModal = ({ isOpen, onClose }) => {
               background: "var(--bg-input)",
               borderRadius: "14px",
               padding: "14px",
-              border: "1px solid rgba(239, 68, 68, 0.25)",
+              border: "1px solid rgba(56, 189, 248, 0.25)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <SparklesIcon size={16} className="text-red" />
+                <SparklesIcon size={16} style={{ color: "var(--accent-cyan)" }} />
                 <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>App Updates</span>
               </div>
               <span
@@ -153,9 +154,10 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                   fontSize: "0.72rem",
                   padding: "2px 8px",
                   borderRadius: "6px",
-                  background: "rgba(255, 255, 255, 0.08)",
-                  color: "var(--text-secondary)",
-                  fontWeight: 600,
+                  background: "rgba(56, 189, 248, 0.15)",
+                  color: "var(--accent-cyan)",
+                  border: "1px solid rgba(56, 189, 248, 0.25)",
+                  fontWeight: 700,
                 }}
               >
                 v{CURRENT_VERSION}
@@ -175,9 +177,9 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                 width: "100%",
                 padding: "10px 14px",
                 borderRadius: "10px",
-                background: "rgba(239, 68, 68, 0.15)",
-                border: "1px solid rgba(239, 68, 68, 0.3)",
-                color: "var(--accent-red)",
+                background: "rgba(56, 189, 248, 0.15)",
+                border: "1px solid rgba(56, 189, 248, 0.3)",
+                color: "var(--accent-cyan)",
                 fontWeight: 700,
                 fontSize: "0.82rem",
                 display: "flex",
