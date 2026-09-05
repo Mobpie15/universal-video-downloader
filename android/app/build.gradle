@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "app.pie.videodownloader"
+    namespace "com.mobpie.videodownloader"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.pie.videodownloader"
+        applicationId "com.mobpie.videodownloader"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

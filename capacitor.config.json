@@ -1,5 +1,5 @@
 {
-  "appId": "app.pie.videodownloader",
+  "appId": "com.mobpie.videodownloader",
   "appName": "Pie Video Downloader",
   "webDir": "dist",
   "server": {

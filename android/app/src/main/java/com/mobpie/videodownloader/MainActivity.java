@@ -1,4 +1,4 @@
-package app.pie.videodownloader;
+package com.mobpie.videodownloader;
 
 import com.getcapacitor.BridgeActivity;
 

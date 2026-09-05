@@ -32,7 +32,7 @@
     "vite": "^6.0.5"
   },
   "build": {
-    "appId": "app.pie.videodownloader",
+    "appId": "com.mobpie.videodownloader",
     "productName": "Pie Video Downloader",
     "directories": {
       "output": "dist-electron"
