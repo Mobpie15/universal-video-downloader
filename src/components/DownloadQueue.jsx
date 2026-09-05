@@ -8,6 +8,7 @@ import {
   TrashIcon,
   ShareIcon,
   LibraryIcon,
+  FolderIcon,
 } from "./icons/Icons.jsx";
 import { shareFile, showToast } from "../engine/nativeBridge.js";
 
@@ -22,6 +23,20 @@ export const DownloadQueue = ({
 
   const activeItems = items.filter((i) => i.status === "downloading");
   const completedItems = items.filter((i) => i.status === "completed" || i.status === "error");
+
+  const isElectron = typeof window !== "undefined" && Boolean(window.electronAPI?.openFolder);
+
+  const handleLocateFile = async (item) => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.openFolder === "function") {
+        await window.electronAPI.openFolder(item.path);
+      } else {
+        showToast("File saved to Downloads");
+      }
+    } catch (e) {
+      showToast("Unable to open folder");
+    }
+  };
 
   const handleShare = async (item) => {
     try {
@@ -301,27 +316,52 @@ export const DownloadQueue = ({
                 {/* File action buttons */}
                 {isSuccess && (
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => handleShare(item)}
-                      style={{
-                        padding: "8px 12px",
-                        borderRadius: "10px",
-                        background: "rgba(56, 189, 248, 0.12)",
-                        border: "1px solid rgba(56, 189, 248, 0.25)",
-                        color: "var(--accent-cyan)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        fontSize: "0.74rem",
-                        fontWeight: 700,
-                        transition: "all 0.2s ease",
-                      }}
-                      title="Share to WhatsApp / Apps"
-                    >
-                      <ShareIcon size={13} />
-                      <span>Share</span>
-                    </button>
+                    {isElectron ? (
+                      <button
+                        type="button"
+                        onClick={() => handleLocateFile(item)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "10px",
+                          background: "rgba(56, 189, 248, 0.15)",
+                          border: "1px solid rgba(56, 189, 248, 0.35)",
+                          color: "var(--accent-cyan)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          fontSize: "0.74rem",
+                          fontWeight: 700,
+                          transition: "all 0.2s ease",
+                          cursor: "pointer",
+                        }}
+                        title="Locate in File Explorer"
+                      >
+                        <FolderIcon size={14} />
+                        <span>File Explorer</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleShare(item)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "10px",
+                          background: "rgba(56, 189, 248, 0.12)",
+                          border: "1px solid rgba(56, 189, 248, 0.25)",
+                          color: "var(--accent-cyan)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          fontSize: "0.74rem",
+                          fontWeight: 700,
+                          transition: "all 0.2s ease",
+                        }}
+                        title="Share to WhatsApp / Apps"
+                      >
+                        <ShareIcon size={13} />
+                        <span>Share</span>
+                      </button>
+                    )}
 
                     {onDeleteItem && (
                       <button

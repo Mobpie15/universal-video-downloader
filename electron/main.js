@@ -168,7 +168,130 @@ ipcMain.handle("extract-media", async (event, url) => {
   });
 });
 
-// IPC Handler: Open Folder
+// Active native download processes
+const activeProcesses = new Map();
+
+// IPC Handler: Native Media Download & Muxing
+ipcMain.handle("download-media", async (event, options) => {
+  const { id, url, formatId, ext, isAudio, title, resolution } = options;
+  return new Promise((resolve, reject) => {
+    const binPath = getYtDlpPath();
+    const downloadsDir = app.getPath("downloads");
+    const safeTitle = (title || "video").replace(/[\\/*?:"<>|]/g, "_").slice(0, 45).trim();
+    const outputTemplate = path.join(downloadsDir, `${safeTitle}_${resolution || "HD"}.%(ext)s`);
+
+    const args = [
+      "--no-warnings",
+      "--no-colors",
+      "--newline",
+      "--js-runtimes",
+      "node",
+    ];
+
+    if (isAudio || ext === "mp3") {
+      args.push("-x", "--audio-format", "mp3");
+    } else {
+      if (formatId && formatId !== "direct" && !formatId.startsWith("pie-")) {
+        args.push("-f", `${formatId}+bestaudio/best`);
+      } else {
+        args.push("-f", "bestvideo+bestaudio/best");
+      }
+      args.push("--merge-output-format", "mp4");
+    }
+
+    args.push("--progress-template", "PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s");
+    args.push("--print", "after_move:filepath");
+    args.push("-o", outputTemplate);
+    args.push(url.trim());
+
+    const proc = spawn(binPath, args);
+    activeProcesses.set(id, proc);
+
+    let finalPath = "";
+    let errorOutput = "";
+
+    proc.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      const lines = text.split(/[\r\n]+/);
+      for (const line of lines) {
+        if (line.startsWith("PROGRESS:")) {
+          const parts = line.replace("PROGRESS:", "").split("|");
+          const percentStr = parts[0] ? parts[0].replace("%", "").trim() : "0";
+          const speedStr = parts[1] ? parts[1].trim() : "0.0";
+          const etaStr = parts[2] ? parts[2].trim() : "0";
+
+          let percent = parseFloat(percentStr) || 0;
+          let speedMBps = "0.0";
+          if (speedStr.includes("MiB/s") || speedStr.includes("MB/s")) {
+            speedMBps = parseFloat(speedStr).toFixed(1);
+          } else if (speedStr.includes("KiB/s") || speedStr.includes("KB/s")) {
+            speedMBps = (parseFloat(speedStr) / 1024).toFixed(1);
+          }
+
+          event.sender.send(`download-progress-${id}`, {
+            percent: Math.min(100, Math.round(percent)),
+            speedMBps,
+            etaSeconds: etaStr,
+          });
+        } else if (
+          line.trim() &&
+          (line.endsWith(".mp4") ||
+            line.endsWith(".mp3") ||
+            line.endsWith(".mkv") ||
+            line.endsWith(".webm") ||
+            line.endsWith(".m4a"))
+        ) {
+          finalPath = line.trim();
+        }
+      }
+    });
+
+    proc.stderr.on("data", (chunk) => {
+      errorOutput += chunk.toString();
+    });
+
+    proc.on("error", (err) => {
+      activeProcesses.delete(id);
+      reject(new Error(`Download engine error: ${err.message}`));
+    });
+
+    proc.on("close", (code) => {
+      activeProcesses.delete(id);
+      if (code === 0) {
+        if (!finalPath || !fs.existsSync(finalPath)) {
+          finalPath = path.join(downloadsDir, `${safeTitle}_${resolution || "HD"}.${isAudio ? "mp3" : "mp4"}`);
+          if (!fs.existsSync(finalPath)) {
+            try {
+              const files = fs.readdirSync(downloadsDir);
+              const found = files.find((f) => f.startsWith(safeTitle));
+              if (found) finalPath = path.join(downloadsDir, found);
+            } catch (e) {}
+          }
+        }
+        resolve({
+          success: true,
+          path: finalPath,
+          fileName: path.basename(finalPath),
+        });
+      } else {
+        reject(new Error(errorOutput.trim() || `Download failed with exit code ${code}`));
+      }
+    });
+  });
+});
+
+// IPC Handler: Cancel Native Download
+ipcMain.handle("cancel-download", (event, id) => {
+  const proc = activeProcesses.get(id);
+  if (proc) {
+    proc.kill();
+    activeProcesses.delete(id);
+    return true;
+  }
+  return false;
+});
+
+// IPC Handler: Open Folder & Locate File
 ipcMain.handle("open-folder", async (event, filePath) => {
   if (filePath && fs.existsSync(filePath)) {
     shell.showItemInFolder(filePath);

@@ -11,12 +11,75 @@ export class Downloader {
   async startDownload({
     id,
     url,
+    mediaUrl,
+    formatId,
+    resolution,
+    ext,
+    isAudio,
+    title,
     fileName,
     totalExpectedBytes,
     onProgress, // ({ percent, speedMBps, etaSeconds, downloadedBytes, totalBytes })
     onComplete, // ({ success, path })
     onError,    // (error)
   }) {
+    // 1. Electron Desktop Native Downloader Engine (yt-dlp + ffmpeg muxing)
+    if (typeof window !== "undefined" && window.electronAPI && typeof window.electronAPI.downloadMedia === "function") {
+      let cleanupProgress = null;
+      if (window.electronAPI.onDownloadProgress) {
+        cleanupProgress = window.electronAPI.onDownloadProgress(id, (prog) => {
+          if (onProgress) {
+            onProgress({
+              percent: prog.percent || 0,
+              speedMBps: prog.speedMBps || "0.0",
+              etaSeconds: prog.etaSeconds || 0,
+              downloadedBytes: 0,
+              totalBytes: 0,
+            });
+          }
+        });
+      }
+
+      this.activeDownloads.set(id, {
+        isElectron: true,
+        cancel: () => {
+          if (window.electronAPI.cancelDownload) window.electronAPI.cancelDownload(id);
+          if (cleanupProgress) cleanupProgress();
+        },
+      });
+
+      try {
+        const result = await window.electronAPI.downloadMedia({
+          id,
+          url: mediaUrl || url,
+          formatId,
+          resolution,
+          ext,
+          isAudio,
+          title,
+          fileName,
+        });
+
+        if (cleanupProgress) cleanupProgress();
+        this.activeDownloads.delete(id);
+
+        if (onComplete) {
+          onComplete({
+            success: true,
+            fileName: result.fileName || fileName,
+            path: result.path || "",
+          });
+        }
+        return;
+      } catch (err) {
+        if (cleanupProgress) cleanupProgress();
+        this.activeDownloads.delete(id);
+        if (onError) onError(err);
+        return;
+      }
+    }
+
+    // 2. Mobile / Web Direct Stream Downloader
     const controller = new AbortController();
     this.activeDownloads.set(id, { controller, status: "downloading" });
 
@@ -116,8 +179,12 @@ export class Downloader {
 
   cancelDownload(id) {
     const item = this.activeDownloads.get(id);
-    if (item && item.controller) {
-      item.controller.abort();
+    if (item) {
+      if (item.isElectron && typeof item.cancel === "function") {
+        item.cancel();
+      } else if (item.controller) {
+        item.controller.abort();
+      }
       this.activeDownloads.delete(id);
       return true;
     }

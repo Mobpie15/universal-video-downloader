@@ -5,9 +5,12 @@ import { UrlInput } from "./components/UrlInput.jsx";
 import { MediaPreview } from "./components/MediaPreview.jsx";
 import { DownloadQueue } from "./components/DownloadQueue.jsx";
 import { SettingsModal } from "./components/SettingsModal.jsx";
+import { ErrorReportModal } from "./components/ErrorReportModal.jsx";
+import { UpdatePromptModal } from "./components/UpdatePromptModal.jsx";
 import { extractMedia } from "./engine/extractors/index.js";
 import { universalDownloader } from "./engine/downloader.js";
 import { showToast, readClipboard } from "./engine/nativeBridge.js";
+import { checkForUpdates } from "./engine/updater.js";
 import { CloseIcon } from "./components/icons/Icons.jsx";
 
 export default function App() {
@@ -19,8 +22,10 @@ export default function App() {
   const [downloadQueue, setDownloadQueue] = useState([]);
   const [downloadingFormatId, setDownloadingFormatId] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [reportModalData, setReportModalData] = useState(null);
+  const [updatePrompt, setUpdatePrompt] = useState(null);
 
-  // Auto-detect URL from clipboard on app launch
+  // Auto-check for updates & detect URL from clipboard on app launch
   useEffect(() => {
     const checkInitialClipboard = async () => {
       try {
@@ -43,7 +48,20 @@ export default function App() {
         console.log("Initial clipboard read:", err);
       }
     };
+
+    const checkStartupUpdate = async () => {
+      try {
+        const info = await checkForUpdates();
+        if (info && info.hasUpdate) {
+          setUpdatePrompt(info);
+        }
+      } catch (err) {
+        console.log("Startup update check:", err);
+      }
+    };
+
     checkInitialClipboard();
+    checkStartupUpdate();
   }, []);
 
   const handleFetchMedia = async () => {
@@ -58,8 +76,15 @@ export default function App() {
       await showToast(`Found ${extracted.formats?.length || 0} qualities`);
     } catch (err) {
       console.error("Extraction failed:", err);
-      setError(err.message || "Failed to parse video. Please verify the URL and try again.");
+      const msg = err.message || "Failed to parse video. Please verify the URL and try again.";
+      setError(msg);
       await showToast("Unable to resolve stream");
+      setReportModalData({
+        errorMessage: msg,
+        errorStack: err.stack,
+        targetUrl: url.trim(),
+        context: "Video Extraction Failure",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -93,6 +118,12 @@ export default function App() {
     universalDownloader.startDownload({
       id: downloadId,
       url: fmt.url,
+      mediaUrl: url.trim(),
+      formatId: fmt.formatId,
+      resolution: fmt.resolution,
+      ext: fmt.ext,
+      isAudio: !fmt.hasVideo || fmt.type === "audio",
+      title: media.title,
       fileName,
       totalExpectedBytes: fmt.filesize,
       onProgress: ({ percent, speedMBps, etaSeconds }) => {
@@ -109,7 +140,7 @@ export default function App() {
         setDownloadQueue((prev) =>
           prev.map((item) =>
             item.id === downloadId
-              ? { ...item, status: "completed", percent: 100, path }
+              ? { ...item, status: "completed", percent: 100, path: path || item.path }
               : item
           )
         );
@@ -125,6 +156,12 @@ export default function App() {
           )
         );
         showToast("Download failed: " + err.message);
+        setReportModalData({
+          errorMessage: err.message,
+          errorStack: err.stack,
+          targetUrl: url.trim(),
+          context: "Media Download & Muxing",
+        });
       },
     });
   };
@@ -190,25 +227,51 @@ export default function App() {
                 style={{
                   padding: "12px 14px",
                   background: "rgba(239, 68, 68, 0.12)",
-                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  border: "1px solid rgba(239, 68, 68, 0.35)",
                   borderRadius: "14px",
-                  color: "var(--accent-red)",
+                  color: "#FCA5A5",
                   fontSize: "0.84rem",
                   marginBottom: "20px",
                   display: "flex",
+                  flexWrap: "wrap",
                   alignItems: "center",
                   justifyContent: "space-between",
                   gap: "10px",
                 }}
               >
-                <span>{error}</span>
-                <button
-                  type="button"
-                  onClick={() => setError(null)}
-                  style={{ color: "var(--accent-red)", padding: "2px" }}
-                >
-                  <CloseIcon size={16} />
-                </button>
+                <span style={{ flex: 1, minWidth: "180px" }}>{error}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReportModalData({
+                        errorMessage: error,
+                        targetUrl: url.trim(),
+                        context: "Media Extraction Failure",
+                      })
+                    }
+                    style={{
+                      padding: "5px 10px",
+                      borderRadius: "8px",
+                      background: "rgba(239, 68, 68, 0.2)",
+                      border: "1px solid rgba(239, 68, 68, 0.4)",
+                      color: "#FFFFFF",
+                      fontSize: "0.74rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Facing issue? Report to Developer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setError(null)}
+                    style={{ color: "var(--accent-red)", padding: "2px" }}
+                  >
+                    <CloseIcon size={16} />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -251,6 +314,23 @@ export default function App() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      {/* Discord Error Reporting Modal */}
+      <ErrorReportModal
+        isOpen={Boolean(reportModalData)}
+        onClose={() => setReportModalData(null)}
+        errorMessage={reportModalData?.errorMessage}
+        errorStack={reportModalData?.errorStack}
+        targetUrl={reportModalData?.targetUrl}
+        context={reportModalData?.context}
+      />
+
+      {/* Auto-Update Prompt Modal */}
+      <UpdatePromptModal
+        isOpen={Boolean(updatePrompt)}
+        onClose={() => setUpdatePrompt(null)}
+        updateInfo={updatePrompt}
       />
     </div>
   );
