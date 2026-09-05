@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Navbar } from "./components/Navbar.jsx";
+import { BottomNav } from "./components/BottomNav.jsx";
 import { UrlInput } from "./components/UrlInput.jsx";
 import { MediaPreview } from "./components/MediaPreview.jsx";
 import { DownloadQueue } from "./components/DownloadQueue.jsx";
@@ -7,9 +8,10 @@ import { SettingsModal } from "./components/SettingsModal.jsx";
 import { extractMedia } from "./engine/extractors/index.js";
 import { universalDownloader } from "./engine/downloader.js";
 import { showToast, readClipboard } from "./engine/nativeBridge.js";
-import { ShieldIcon } from "./components/icons/Icons.jsx";
+import { CloseIcon } from "./components/icons/Icons.jsx";
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState("downloader"); // "downloader" | "downloads" | "settings"
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -35,7 +37,6 @@ export default function App() {
             lower.includes("twitter.com")
           ) {
             setUrl(text.trim());
-            await showToast("Link detected from clipboard");
           }
         }
       } catch (err) {
@@ -54,11 +55,11 @@ export default function App() {
     try {
       const extracted = await extractMedia(url.trim());
       setMedia(extracted);
-      await showToast(`Found ${extracted.formats?.length || 0} stream formats`);
+      await showToast(`Found ${extracted.formats?.length || 0} qualities`);
     } catch (err) {
       console.error("Extraction failed:", err);
       setError(err.message || "Failed to parse video. Please verify the URL and try again.");
-      await showToast("Extraction failed");
+      await showToast("Unable to resolve stream");
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +73,6 @@ export default function App() {
     const safeTitle = media.title.replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 40);
     const fileName = `${safeTitle}_${fmt.resolution}.${fmt.ext}`;
 
-    // Add to download queue
     const queueItem = {
       id: downloadId,
       title: media.title,
@@ -87,7 +87,9 @@ export default function App() {
 
     setDownloadQueue((prev) => [queueItem, ...prev]);
 
-    // Kick off download
+    // Switch to downloader or notify
+    showToast("Download started...");
+
     universalDownloader.startDownload({
       id: downloadId,
       url: fmt.url,
@@ -111,6 +113,7 @@ export default function App() {
               : item
           )
         );
+        showToast("Download complete! Saved to device.");
       },
       onError: (err) => {
         setDownloadingFormatId(null);
@@ -134,120 +137,118 @@ export default function App() {
 
   const handleClearCompleted = () => {
     setDownloadQueue((prev) => prev.filter((item) => item.status === "downloading"));
+    showToast("History cleared");
+  };
+
+  const handleDeleteItem = (id) => {
+    setDownloadQueue((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleTabSelect = (tab) => {
+    if (tab === "settings") {
+      setIsSettingsOpen(true);
+    } else {
+      setActiveTab(tab);
+    }
   };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <Navbar onOpenSettings={() => setIsSettingsOpen(true)} />
+      {/* Native App Bar */}
+      <Navbar
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenDownloads={() => setActiveTab("downloads")}
+        downloadsCount={downloadQueue.length}
+      />
 
-      <main style={{ flex: 1, maxWidth: "880px", margin: "0 auto", padding: "28px 16px", width: "100%" }}>
-        {/* App Hero Introduction */}
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "4px 12px",
-              background: "rgba(6, 182, 212, 0.12)",
-              border: "1px solid rgba(6, 182, 212, 0.25)",
-              borderRadius: "20px",
-              color: "var(--accent-cyan)",
-              fontSize: "0.78rem",
-              fontWeight: 600,
-              marginBottom: "14px",
-            }}
-          >
-            <ShieldIcon size={14} />
-            <span>Zero Server Load • 100% Client-Side Device Execution</span>
-          </div>
+      {/* Main Container */}
+      <main
+        style={{
+          flex: 1,
+          maxWidth: "540px",
+          margin: "0 auto",
+          padding: "16px 16px 24px 16px",
+          width: "100%",
+        }}
+      >
+        {activeTab === "downloader" ? (
+          <>
+            {/* Search Input & Platform Shortcuts */}
+            <UrlInput
+              url={url}
+              setUrl={setUrl}
+              onFetch={handleFetchMedia}
+              isLoading={isLoading}
+            />
 
-          <h1
-            style={{
-              fontSize: "2rem",
-              fontWeight: 800,
-              color: "var(--text-primary)",
-              letterSpacing: "-0.02em",
-              marginBottom: "10px",
-            }}
-          >
-            Universal Video Downloader
-          </h1>
-          <p
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "0.92rem",
-              maxWidth: "520px",
-              margin: "0 auto",
-            }}
-          >
-            Download HD video and audio directly on your device from YouTube, Instagram Reels, TikTok, Facebook, and Twitter/X with zero watermarks.
-          </p>
-        </div>
+            {/* Error Message Box */}
+            {error && (
+              <div
+                style={{
+                  padding: "12px 14px",
+                  background: "rgba(239, 68, 68, 0.12)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: "14px",
+                  color: "var(--accent-red)",
+                  fontSize: "0.84rem",
+                  marginBottom: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                }}
+              >
+                <span>{error}</span>
+                <button
+                  type="button"
+                  onClick={() => setError(null)}
+                  style={{ color: "var(--accent-red)", padding: "2px" }}
+                >
+                  <CloseIcon size={16} />
+                </button>
+              </div>
+            )}
 
-        {/* URL Input & Platform Detection */}
-        <UrlInput
-          url={url}
-          setUrl={setUrl}
-          onFetch={handleFetchMedia}
-          isLoading={isLoading}
-        />
+            {/* Video Preview & Format Selection */}
+            <MediaPreview
+              media={media}
+              onDownloadFormat={handleDownloadFormat}
+              downloadingFormatId={downloadingFormatId}
+            />
 
-        {/* Error Alert Box */}
-        {error && (
-          <div
-            style={{
-              padding: "14px 18px",
-              background: "rgba(239, 68, 68, 0.12)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
-              borderRadius: "12px",
-              color: "var(--accent-red)",
-              fontSize: "0.88rem",
-              marginBottom: "24px",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <span>{error}</span>
-          </div>
+            {/* Active Downloads & Recent 3 Downloads */}
+            <DownloadQueue
+              items={downloadQueue}
+              onCancelDownload={handleCancelDownload}
+              onClearCompleted={handleClearCompleted}
+              onDeleteItem={handleDeleteItem}
+              isFullView={false}
+            />
+          </>
+        ) : (
+          /* "My Files" Library Tab */
+          <DownloadQueue
+            items={downloadQueue}
+            onCancelDownload={handleCancelDownload}
+            onClearCompleted={handleClearCompleted}
+            onDeleteItem={handleDeleteItem}
+            isFullView={true}
+          />
         )}
-
-        {/* Media Details & Quality Format Picker */}
-        <MediaPreview
-          media={media}
-          onDownloadFormat={handleDownloadFormat}
-          downloadingFormatId={downloadingFormatId}
-        />
-
-        {/* Active & Completed Download Manager */}
-        <DownloadQueue
-          items={downloadQueue}
-          onCancelDownload={handleCancelDownload}
-          onClearCompleted={handleClearCompleted}
-        />
       </main>
 
-      {/* Settings & Architecture Modal */}
+      {/* Mobile Bottom Navigation Bar */}
+      <BottomNav
+        activeTab={activeTab}
+        onSelectTab={handleTabSelect}
+        downloadsCount={downloadQueue.length}
+      />
+
+      {/* Settings Bottom Sheet Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
-
-      {/* Clean Footer */}
-      <footer
-        style={{
-          borderTop: "1px solid var(--border)",
-          padding: "20px",
-          textAlign: "center",
-          color: "var(--text-muted)",
-          fontSize: "0.8rem",
-        }}
-      >
-        <div style={{ maxWidth: "880px", margin: "0 auto" }}>
-          PIETools Universal Downloader • Direct Local Device Engine • Zero Emojis
-        </div>
-      </footer>
     </div>
   );
 }

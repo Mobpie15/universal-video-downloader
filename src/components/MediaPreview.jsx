@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React, { useState } from "react";
 import {
   VideoIcon,
   AudioIcon,
@@ -9,9 +9,12 @@ import {
   PlatformFacebookIcon,
   PlatformTwitterIcon,
   PlatformGenericIcon,
+  PlayIcon,
 } from "./icons/Icons.jsx";
 
 export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) => {
+  const [filterType, setFilterType] = useState("all"); // "all" | "video" | "audio"
+
   if (!media) return null;
 
   const formatDuration = (sec) => {
@@ -39,200 +42,241 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
     return `${mb.toFixed(1)} MB`;
   };
 
+  const formats = media.formats || [];
+  const filteredFormats = formats.filter((fmt) => {
+    const isAudioOnly = fmt.type === "audio" || !fmt.hasVideo;
+    if (filterType === "video") return !isAudioOnly;
+    if (filterType === "audio") return isAudioOnly;
+    return true;
+  });
+
   return (
     <div
       style={{
         background: "var(--bg-card)",
         border: "1px solid var(--border)",
-        borderRadius: "16px",
-        padding: "20px",
+        borderRadius: "18px",
+        padding: "16px",
         marginBottom: "24px",
+        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.25)",
       }}
     >
-      {/* Video Header / Metadata Row */}
-      <div
-        style={{
-          display: "flex",
-          gap: "16px",
-          alignItems: "flex-start",
-          marginBottom: "20px",
-          flexWrap: "wrap",
-        }}
-      >
-        {/* Thumbnail preview */}
+      {/* Mobile Video Metadata Card */}
+      <div style={{ marginBottom: "16px" }}>
         {media.thumbnail && (
           <div
             style={{
               position: "relative",
-              width: "160px",
-              height: "90px",
-              borderRadius: "10px",
+              width: "100%",
+              paddingTop: "52%", // 16:9 mobile aspect ratio
+              borderRadius: "14px",
               overflow: "hidden",
-              backgroundColor: "#000000",
-              flexShrink: 0,
+              backgroundColor: "#0F172A",
+              marginBottom: "12px",
             }}
           >
             <img
               src={media.thumbnail}
               alt={media.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
               onError={(e) => { e.target.style.display = 'none'; }}
             />
             {media.duration > 0 && (
               <span
                 style={{
                   position: "absolute",
-                  bottom: "4px",
-                  right: "6px",
-                  background: "rgba(0,0,0,0.8)",
+                  bottom: "8px",
+                  right: "8px",
+                  background: "rgba(0, 0, 0, 0.85)",
                   color: "#FFFFFF",
-                  fontSize: "0.68rem",
+                  fontSize: "0.72rem",
                   fontWeight: 700,
-                  padding: "1px 5px",
-                  borderRadius: "4px",
+                  padding: "2px 7px",
+                  borderRadius: "6px",
                   fontFamily: "var(--font-mono)",
                 }}
               >
                 {formatDuration(media.duration)}
               </span>
             )}
+            <div
+              style={{
+                position: "absolute",
+                top: "8px",
+                left: "8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "3px 8px",
+                borderRadius: "6px",
+                background: "rgba(0, 0, 0, 0.75)",
+                color: "#FFFFFF",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                textTransform: "capitalize",
+              }}
+            >
+              {getPlatformIcon(media.platform)}
+              <span>{media.platform}</span>
+            </div>
           </div>
         )}
 
-        {/* Title and details */}
-        <div style={{ flex: 1, minWidth: "220px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-            <span style={{ display: "flex", alignItems: "center" }}>
-              {getPlatformIcon(media.platform)}
-            </span>
-            <span
-              style={{
-                fontSize: "0.75rem",
-                textTransform: "uppercase",
-                fontWeight: 700,
-                color: "var(--text-secondary)",
-              }}
-            >
-              {media.platform}
-            </span>
-          </div>
-
-          <h3
-            style={{
-              fontSize: "1.05rem",
-              fontWeight: 700,
-              color: "var(--text-primary)",
-              lineHeight: 1.35,
-              marginBottom: "6px",
-            }}
-          >
-            {media.title}
-          </h3>
-
-          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>
-            Creator: <span style={{ color: "var(--text-secondary)" }}>{media.author}</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Available Stream Formats Section */}
-      <div>
-        <div
+        <h3
           style={{
-            fontSize: "0.82rem",
+            fontSize: "1rem",
             fontWeight: 700,
-            color: "var(--text-secondary)",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            marginBottom: "12px",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
+            color: "var(--text-primary)",
+            lineHeight: 1.35,
+            marginBottom: "4px",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
-          <VideoIcon size={14} />
-          <span>Available Download Qualities</span>
-        </div>
+          {media.title}
+        </h3>
 
-        <div style={{ display: "grid", gap: "10px" }}>
-          {media.formats && media.formats.length > 0 ? (
-            media.formats.map((fmt) => {
-              const isDownloading = downloadingFormatId === fmt.formatId;
-              const isAudioOnly = fmt.type === "audio" || !fmt.hasVideo;
+        {media.author && (
+          <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: 0 }}>
+            By <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{media.author}</span>
+          </p>
+        )}
+      </div>
 
-              return (
-                <div
-                  key={fmt.formatId}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "var(--bg-input)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "10px",
-                    padding: "10px 14px",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div
-                      style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "8px",
-                        background: isAudioOnly ? "rgba(139, 92, 246, 0.15)" : "rgba(6, 182, 212, 0.15)",
-                        color: isAudioOnly ? "var(--accent-purple)" : "var(--accent-cyan)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {isAudioOnly ? <AudioIcon size={16} /> : <VideoIcon size={16} />}
-                    </div>
+      {/* Format Filter Segmented Control */}
+      <div
+        style={{
+          display: "flex",
+          background: "var(--bg-input)",
+          borderRadius: "10px",
+          padding: "3px",
+          marginBottom: "14px",
+        }}
+      >
+        {[
+          { id: "all", label: "All Formats" },
+          { id: "video", label: "Video Only" },
+          { id: "audio", label: "Audio Only" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setFilterType(t.id)}
+            style={{
+              flex: 1,
+              padding: "7px 4px",
+              fontSize: "0.76rem",
+              fontWeight: filterType === t.id ? 700 : 500,
+              borderRadius: "8px",
+              background: filterType === t.id ? "var(--accent-red)" : "transparent",
+              color: filterType === t.id ? "#FFFFFF" : "var(--text-muted)",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-primary)" }}>
-                        {fmt.label || fmt.resolution}
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                        Format: <span style={{ textTransform: "uppercase", color: "var(--text-secondary)" }}>{fmt.ext}</span>
-                        {fmt.filesize ? ` • ${formatBytes(fmt.filesize)}` : ""}
-                        {fmt.hasAudio && fmt.hasVideo ? " • Video + Audio" : ""}
-                        {isAudioOnly ? " • Audio Track" : ""}
-                      </div>
-                    </div>
-                  </div>
+      {/* Quality Options List */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {filteredFormats.length > 0 ? (
+          filteredFormats.map((fmt) => {
+            const isDownloading = downloadingFormatId === fmt.formatId;
+            const isAudioOnly = fmt.type === "audio" || !fmt.hasVideo;
 
-                  <button
-                    type="button"
-                    onClick={() => onDownloadFormat(fmt)}
-                    disabled={isDownloading}
+            return (
+              <div
+                key={fmt.formatId}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "var(--bg-input)",
+                  border: "1px solid rgba(255, 255, 255, 0.05)",
+                  borderRadius: "12px",
+                  padding: "10px 12px",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                  <div
                     style={{
-                      padding: "8px 18px",
-                      borderRadius: "8px",
-                      background: isDownloading ? "var(--bg-hover)" : "var(--accent-red)",
-                      color: isDownloading ? "var(--text-muted)" : "#FFFFFF",
-                      fontWeight: 700,
-                      fontSize: "0.84rem",
+                      width: "34px",
+                      height: "34px",
+                      borderRadius: "10px",
+                      background: isAudioOnly ? "rgba(139, 92, 246, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                      color: isAudioOnly ? "var(--accent-purple)" : "var(--accent-red)",
                       display: "flex",
                       alignItems: "center",
-                      gap: "6px",
-                      cursor: isDownloading ? "not-allowed" : "pointer",
+                      justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
-                    <DownloadIcon size={15} />
-                    <span>{isDownloading ? "Starting..." : "Download"}</span>
-                  </button>
+                    {isAudioOnly ? <AudioIcon size={16} /> : <VideoIcon size={16} />}
+                  </div>
+
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        fontSize: "0.88rem",
+                        color: "var(--text-primary)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {fmt.label || fmt.resolution}
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                      <span style={{ textTransform: "uppercase", fontWeight: 700, color: "var(--text-secondary)" }}>
+                        {fmt.ext}
+                      </span>
+                      {fmt.filesize ? ` • ${formatBytes(fmt.filesize)}` : ""}
+                      {isAudioOnly ? " • MP3 Audio" : " • HD Stream"}
+                    </div>
+                  </div>
                 </div>
-              );
-            })
-          ) : (
-            <div style={{ padding: "16px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.88rem" }}>
-              No stream formats could be resolved.
-            </div>
-          )}
-        </div>
+
+                <button
+                  type="button"
+                  onClick={() => onDownloadFormat(fmt)}
+                  disabled={isDownloading}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "10px",
+                    background: isDownloading ? "var(--bg-hover)" : "var(--accent-red)",
+                    color: isDownloading ? "var(--text-muted)" : "#FFFFFF",
+                    fontWeight: 700,
+                    fontSize: "0.82rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    cursor: isDownloading ? "not-allowed" : "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  <DownloadIcon size={14} />
+                  <span>{isDownloading ? "Starting..." : "Download"}</span>
+                </button>
+              </div>
+            );
+          })
+        ) : (
+          <div style={{ padding: "16px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.84rem" }}>
+            No format matches this filter.
+          </div>
+        )}
       </div>
     </div>
   );

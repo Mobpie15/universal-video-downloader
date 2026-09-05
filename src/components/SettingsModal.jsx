@@ -1,5 +1,5 @@
-import React from "react";
-import { CloseIcon, ShieldIcon, DevicePhoneIcon, DevicePcIcon } from "./icons/Icons.jsx";
+﻿import React from "react";
+import { CloseIcon, FolderIcon, DevicePhoneIcon, DownloadIcon } from "./icons/Icons.jsx";
 import { getPlatformName } from "../engine/nativeBridge.js";
 
 export const SettingsModal = ({ isOpen, onClose }) => {
@@ -12,12 +12,12 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(6px)",
+        backgroundColor: "rgba(0, 0, 0, 0.78)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-end", // bottom sheet on mobile
         justifyContent: "center",
-        padding: "20px",
         zIndex: 100,
       }}
       onClick={onClose}
@@ -25,31 +25,57 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       <div
         style={{
           background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-          borderRadius: "20px",
+          borderTop: "1px solid var(--border)",
+          borderLeft: "1px solid var(--border)",
+          borderRight: "1px solid var(--border)",
+          borderTopLeftRadius: "24px",
+          borderTopRightRadius: "24px",
           width: "100%",
-          maxWidth: "500px",
-          padding: "24px",
-          position: "relative",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5)",
+          maxWidth: "540px",
+          maxHeight: "85vh",
+          overflowY: "auto",
+          padding: "20px 20px 32px 20px",
+          boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.6)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
+        {/* Handle bar */}
+        <div
+          style={{
+            width: "38px",
+            height: "4px",
+            borderRadius: "4px",
+            background: "rgba(255, 255, 255, 0.2)",
+            margin: "0 auto 16px auto",
+          }}
+        />
+
+        {/* Header */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "20px",
-            borderBottom: "1px solid var(--border)",
-            paddingBottom: "14px",
+            marginBottom: "18px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <ShieldIcon size={20} className="text-cyan" />
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>
-              App Architecture &amp; Settings
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "9px",
+                background: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#FFFFFF",
+              }}
+            >
+              <DownloadIcon size={16} />
+            </div>
+            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+              App Settings & Info
             </h3>
           </div>
           <button
@@ -67,74 +93,80 @@ export const SettingsModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Modal Content */}
-        <div style={{ display: "grid", gap: "16px", fontSize: "0.86rem" }}>
-          {/* Platform info */}
+        {/* Content list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "0.86rem" }}>
+          {/* Save Location Tile */}
           <div
             style={{
               background: "var(--bg-input)",
-              borderRadius: "12px",
+              borderRadius: "14px",
               padding: "14px",
               border: "1px solid var(--border)",
             }}
           >
-            <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
-              {platform === "android" ? <DevicePhoneIcon size={16} /> : <DevicePcIcon size={16} />}
-              <span>Current Platform: {platform.toUpperCase()}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
+              <FolderIcon size={16} />
+              <span>Download Directory</span>
             </div>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", margin: 0 }}>
-              Native storage integration is active. Downloaded files are saved straight to your device&apos;s Downloads/Documents folder.
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.78rem", margin: 0 }}>
+              Files are saved to your device&apos;s default <strong>Downloads</strong> folder and appear instantly in your Gallery / Photos app.
             </p>
           </div>
 
-          {/* Client-side privacy card */}
+          {/* Platform Environment */}
           <div
             style={{
               background: "var(--bg-input)",
-              borderRadius: "12px",
+              borderRadius: "14px",
               padding: "14px",
               border: "1px solid var(--border)",
             }}
           >
-            <div style={{ fontWeight: 600, color: "var(--accent-green)", marginBottom: "4px" }}>
-              Zero Server Load (100% Client-Side)
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
+              <DevicePhoneIcon size={16} />
+              <span>Device Environment</span>
             </div>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", margin: 0, lineHeight: 1.4 }}>
-              All video extraction and chunk downloads execute directly on your local device. The video never routes through PIETools servers, ensuring complete privacy, zero server costs, and zero rate-limiting.
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.78rem", margin: 0 }}>
+              Running on <strong>{platform.toUpperCase()}</strong> with native hardware stream acceleration enabled.
             </p>
           </div>
 
-          {/* Engine Version */}
+          {/* App details */}
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              color: "var(--text-muted)",
-              fontSize: "0.78rem",
-              paddingTop: "6px",
+              background: "var(--bg-input)",
+              borderRadius: "14px",
+              padding: "14px",
+              border: "1px solid var(--border)",
             }}
           >
-            <span>Universal Downloader Engine</span>
-            <span>v1.0.0 (Native Core)</span>
+            <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
+              Pie Video Downloader
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text-muted)", fontSize: "0.76rem" }}>
+              <span>Version</span>
+              <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>1.0.0 (Release)</span>
+            </div>
           </div>
         </div>
 
-        {/* Close Action */}
-        <div style={{ marginTop: "24px", textAlign: "right" }}>
+        {/* Done Button */}
+        <div style={{ marginTop: "20px" }}>
           <button
             type="button"
             onClick={onClose}
             style={{
-              padding: "10px 24px",
-              borderRadius: "10px",
+              width: "100%",
+              padding: "12px",
+              borderRadius: "12px",
               background: "var(--bg-hover)",
               color: "var(--text-primary)",
-              fontWeight: 600,
-              fontSize: "0.88rem",
+              fontWeight: 700,
+              fontSize: "0.9rem",
               cursor: "pointer",
             }}
           >
-            Close
+            Done
           </button>
         </div>
       </div>

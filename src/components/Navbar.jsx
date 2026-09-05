@@ -1,133 +1,148 @@
-import React from "react";
-import { DownloadIcon, SettingsIcon, ShieldIcon, DevicePhoneIcon, DevicePcIcon } from "./icons/Icons.jsx";
-import { getPlatformName } from "../engine/nativeBridge.js";
+﻿import React from "react";
+import { DownloadIcon, SettingsIcon, LibraryIcon } from "./icons/Icons.jsx";
 
-export const Navbar = ({ onOpenSettings }) => {
-  const platform = getPlatformName();
-
+export const Navbar = ({ onOpenSettings, onOpenDownloads, downloadsCount = 0 }) => {
   return (
     <header
       style={{
         position: "sticky",
         top: 0,
         zIndex: 50,
-        backdropFilter: "blur(12px)",
-        backgroundColor: "rgba(11, 15, 25, 0.85)",
-        borderBottom: "1px solid var(--border)",
-        padding: "14px 20px",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        backgroundColor: "rgba(10, 14, 23, 0.88)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.07)",
+        paddingTop: "max(env(safe-area-inset-top, 0px), 12px)",
+        paddingBottom: "12px",
+        paddingLeft: "16px",
+        paddingRight: "16px",
       }}
     >
       <div
         style={{
-          maxWidth: "960px",
+          maxWidth: "600px",
           margin: "0 auto",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        {/* Brand Logo */}
+        {/* Brand Identity */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div
             style={{
               width: "36px",
               height: "36px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+              borderRadius: "11px",
+              background: "linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#FFFFFF",
-              boxShadow: "0 2px 10px rgba(239, 68, 68, 0.35)",
+              boxShadow: "0 3px 12px rgba(239, 68, 68, 0.35)",
+              flexShrink: 0,
             }}
           >
             <DownloadIcon size={20} />
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontWeight: 800, fontSize: "1.1rem", letterSpacing: "-0.02em" }}>
-                PIE<span style={{ color: "var(--accent-red)" }}>Tools</span>
+              <span
+                style={{
+                  fontWeight: 800,
+                  fontSize: "1.05rem",
+                  letterSpacing: "-0.02em",
+                  color: "var(--text-primary)",
+                }}
+              >
+                Pie Video
               </span>
               <span
                 style={{
-                  fontSize: "0.68rem",
-                  fontWeight: 700,
+                  fontSize: "0.62rem",
+                  fontWeight: 800,
                   textTransform: "uppercase",
-                  padding: "2px 6px",
+                  padding: "1px 5px",
                   borderRadius: "4px",
-                  background: "rgba(6, 182, 212, 0.15)",
-                  color: "var(--accent-cyan)",
-                  border: "1px solid rgba(6, 182, 212, 0.3)",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  color: "var(--accent-red)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  letterSpacing: "0.05em",
                 }}
               >
-                App
+                PRO
               </span>
             </div>
-            <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", margin: 0 }}>
-              Universal Video Downloader
+            <p
+              style={{
+                fontSize: "0.7rem",
+                color: "var(--text-muted)",
+                margin: 0,
+                lineHeight: 1.2,
+              }}
+            >
+              Universal Downloader
             </p>
           </div>
         </div>
 
-        {/* Right Action Icons & Badges */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            style={{
-              display: "none",
-              alignItems: "center",
-              gap: "6px",
-              padding: "4px 10px",
-              borderRadius: "20px",
-              background: "rgba(16, 185, 129, 0.12)",
-              border: "1px solid rgba(16, 185, 129, 0.25)",
-              color: "var(--accent-green)",
-              fontSize: "0.75rem",
-              fontWeight: 600,
-            }}
-            className="md-flex"
-          >
-            <ShieldIcon size={14} />
-            <span>100% Client-Side</span>
-          </div>
-
-          <div
+        {/* Quick Header Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {/* Quick Downloads Pill */}
+          <button
+            type="button"
+            onClick={onOpenDownloads}
             style={{
               display: "flex",
               alignItems: "center",
               gap: "5px",
-              padding: "5px 9px",
-              borderRadius: "8px",
-              background: "var(--bg-input)",
-              border: "1px solid var(--border)",
+              padding: "6px 10px",
+              borderRadius: "10px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
               color: "var(--text-secondary)",
-              fontSize: "0.75rem",
+              fontSize: "0.76rem",
+              fontWeight: 600,
             }}
+            title="My Downloads"
           >
-            {platform === "android" ? (
-              <DevicePhoneIcon size={14} />
-            ) : (
-              <DevicePcIcon size={14} />
+            <LibraryIcon size={15} />
+            <span>Files</span>
+            {downloadsCount > 0 && (
+              <span
+                style={{
+                  background: "var(--accent-red)",
+                  color: "#FFFFFF",
+                  fontSize: "0.62rem",
+                  fontWeight: 800,
+                  padding: "1px 5px",
+                  borderRadius: "8px",
+                  marginLeft: "2px",
+                }}
+              >
+                {downloadsCount}
+              </span>
             )}
-            <span style={{ textTransform: "capitalize" }}>{platform}</span>
-          </div>
+          </button>
 
+          {/* Settings Button */}
           <button
             type="button"
             onClick={onOpenSettings}
             style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "8px",
-              background: "var(--bg-input)",
-              border: "1px solid var(--border)",
+              width: "34px",
+              height: "34px",
+              borderRadius: "10px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
               color: "var(--text-secondary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
-            title="Settings & Info"
+            title="Settings"
           >
-            <SettingsIcon size={18} />
+            <SettingsIcon size={16} />
           </button>
         </div>
       </div>
