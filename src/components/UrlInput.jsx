@@ -101,7 +101,7 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
   ];
 
   return (
-    <div style={{ width: "100%", marginBottom: "28px" }}>
+    <div style={{ width: "100%", marginBottom: "16px" }}>
       {/* Smart Clipboard Notification Banner */}
       {clipboardUrl && !url && (
         <div
@@ -110,22 +110,22 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
           style={{
             background: "linear-gradient(135deg, rgba(37, 99, 235, 0.22) 0%, rgba(56, 189, 248, 0.18) 100%)",
             border: "1px solid rgba(56, 189, 248, 0.4)",
-            borderRadius: "16px",
-            padding: "12px 16px",
-            marginBottom: "16px",
+            borderRadius: "14px",
+            padding: "9px 14px",
+            marginBottom: "12px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             cursor: "pointer",
-            boxShadow: "0 0 24px rgba(56, 189, 248, 0.2)",
+            boxShadow: "0 0 20px rgba(56, 189, 248, 0.15)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
             <div
               style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "8px",
+                width: "24px",
+                height: "24px",
+                borderRadius: "6px",
                 background: "rgba(56, 189, 248, 0.2)",
                 display: "flex",
                 alignItems: "center",
@@ -134,15 +134,15 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
                 flexShrink: 0,
               }}
             >
-              <SparklesIcon size={16} />
+              <SparklesIcon size={14} />
             </div>
             <div style={{ overflow: "hidden" }}>
-              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#FFFFFF" }}>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#FFFFFF" }}>
                 Found link in clipboard
               </div>
               <div
                 style={{
-                  fontSize: "0.72rem",
+                  fontSize: "0.68rem",
                   color: "var(--text-secondary)",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -156,14 +156,13 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
           </div>
           <span
             style={{
-              padding: "6px 14px",
+              padding: "4px 12px",
               background: "var(--accent-gradient)",
               color: "#FFFFFF",
-              borderRadius: "10px",
-              fontSize: "0.78rem",
+              borderRadius: "8px",
+              fontSize: "0.74rem",
               fontWeight: 800,
               flexShrink: 0,
-              boxShadow: "0 2px 10px rgba(56, 189, 248, 0.35)",
             }}
           >
             Paste
@@ -175,13 +174,13 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
       <div
         className="glass-panel"
         style={{
-          borderRadius: "22px",
-          padding: "16px",
-          border: `1.5px solid ${url ? "rgba(56, 189, 248, 0.5)" : "rgba(255, 255, 255, 0.09)"}`,
+          borderRadius: "16px",
+          padding: "12px 14px",
+          border: `1.5px solid ${url ? "rgba(56, 189, 248, 0.45)" : "rgba(255, 255, 255, 0.08)"}`,
           boxShadow: url
-            ? "0 12px 36px rgba(0, 0, 0, 0.45), 0 0 30px rgba(56, 189, 248, 0.18)"
-            : "0 8px 30px rgba(0, 0, 0, 0.35)",
-          transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+            ? "0 8px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(56, 189, 248, 0.15)"
+            : "0 6px 20px rgba(0, 0, 0, 0.3)",
+          transition: "all 0.25s ease",
         }}
       >
         {/* Input Bar Row */}
@@ -190,11 +189,10 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
             display: "flex",
             alignItems: "center",
             background: "var(--bg-input)",
-            borderRadius: "14px",
-            padding: "8px 12px 8px 14px",
-            marginBottom: "14px",
+            borderRadius: "11px",
+            padding: "5px 10px 5px 12px",
+            marginBottom: "10px",
             border: "1px solid rgba(255, 255, 255, 0.08)",
-            boxShadow: "inset 0 2px 6px rgba(0, 0, 0, 0.3)",
           }}
         >
           <div
@@ -202,7 +200,7 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
               color: currentPlatform !== "generic" ? "var(--accent-cyan)" : "var(--text-muted)",
               display: "flex",
               alignItems: "center",
-              marginRight: "10px",
+              marginRight: "8px",
               flexShrink: 0,
             }}
           >
@@ -214,16 +212,16 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Paste YouTube, Instagram, TikTok, Facebook link..."
+            placeholder="Paste video or reel URL here..."
             style={{
               flex: 1,
               background: "transparent",
               border: "none",
               outline: "none",
               color: "#FFFFFF",
-              fontSize: "0.96rem",
+              fontSize: "0.88rem",
               fontWeight: 500,
-              padding: "8px 0",
+              padding: "6px 0",
               minWidth: 0,
             }}
           />
@@ -233,36 +231,40 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
               type="button"
               onClick={() => setUrl("")}
               style={{
-                padding: "6px",
+                padding: "5px",
                 color: "var(--text-muted)",
                 display: "flex",
                 alignItems: "center",
                 flexShrink: 0,
-                borderRadius: "8px",
+                borderRadius: "6px",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
               }}
               title="Clear input"
             >
-              <CloseIcon size={16} />
+              <CloseIcon size={15} />
             </button>
           ) : (
             <button
               type="button"
               onClick={handlePaste}
               style={{
-                padding: "7px 12px",
-                borderRadius: "10px",
+                padding: "5px 10px",
+                borderRadius: "8px",
                 background: "rgba(56, 189, 248, 0.14)",
                 border: "1px solid rgba(56, 189, 248, 0.25)",
                 color: "var(--accent-cyan)",
-                fontSize: "0.78rem",
+                fontSize: "0.74rem",
                 fontWeight: 700,
                 display: "flex",
                 alignItems: "center",
-                gap: "5px",
+                gap: "4px",
                 flexShrink: 0,
+                cursor: "pointer",
               }}
             >
-              <CopyIcon size={13} />
+              <CopyIcon size={12} />
               <span>Paste</span>
             </button>
           )}
@@ -275,60 +277,60 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
           disabled={!url.trim() || isLoading}
           style={{
             width: "100%",
-            padding: "14px 20px",
-            borderRadius: "14px",
+            padding: "10px 16px",
+            borderRadius: "11px",
             background:
               !url.trim() || isLoading
                 ? "rgba(255, 255, 255, 0.06)"
                 : "var(--accent-gradient)",
             color: !url.trim() || isLoading ? "var(--text-muted)" : "#FFFFFF",
-            fontWeight: 800,
-            fontSize: "1rem",
-            letterSpacing: "0.01em",
+            fontWeight: 700,
+            fontSize: "0.88rem",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "10px",
+            gap: "8px",
+            border: "none",
             boxShadow:
               url.trim() && !isLoading
-                ? "0 6px 24px rgba(37, 99, 235, 0.4), 0 0 20px rgba(56, 189, 248, 0.3)"
+                ? "0 4px 16px rgba(37, 99, 235, 0.35)"
                 : "none",
             cursor: !url.trim() || isLoading ? "not-allowed" : "pointer",
-            transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+            transition: "all 0.2s ease",
           }}
         >
           {isLoading ? (
             <>
-              <RefreshIcon size={20} className="animate-spin" />
-              <span>Resolving Stream Qualities...</span>
+              <RefreshIcon size={16} className="animate-spin" />
+              <span>Analyzing Video...</span>
             </>
           ) : (
             <>
-              <DownloadIcon size={20} />
-              <span>Analyze & Download</span>
+              <DownloadIcon size={16} />
+              <span>Analyze &amp; Download</span>
             </>
           )}
         </button>
       </div>
 
       {/* Sleek Platform Indicator Chips */}
-      <div style={{ marginTop: "20px" }}>
+      <div style={{ marginTop: "12px" }}>
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "10px",
+            marginBottom: "8px",
             paddingLeft: "4px",
             paddingRight: "4px",
           }}
         >
           <span
             style={{
-              fontSize: "0.72rem",
+              fontSize: "0.7rem",
               fontWeight: 700,
               textTransform: "uppercase",
-              letterSpacing: "0.08em",
+              letterSpacing: "0.06em",
               color: "var(--text-muted)",
             }}
           >
@@ -336,12 +338,12 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
           </span>
           <span
             style={{
-              fontSize: "0.7rem",
+              fontSize: "0.68rem",
               color: "var(--accent-cyan)",
               fontWeight: 600,
               background: "rgba(56, 189, 248, 0.1)",
-              padding: "2px 8px",
-              borderRadius: "12px",
+              padding: "1px 7px",
+              borderRadius: "10px",
               border: "1px solid rgba(56, 189, 248, 0.2)",
             }}
           >
@@ -355,7 +357,7 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
             display: "flex",
             alignItems: "center",
             flexWrap: "wrap",
-            gap: "8px",
+            gap: "6px",
           }}
         >
           {platforms.map((p) => {
@@ -371,9 +373,9 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: "7px",
-                  padding: "7px 12px",
-                  borderRadius: "12px",
+                  gap: "6px",
+                  padding: "5px 10px",
+                  borderRadius: "10px",
                   background: isMatch
                     ? "rgba(56, 189, 248, 0.16)"
                     : "rgba(255, 255, 255, 0.04)",
@@ -381,10 +383,10 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
                     ? "1px solid rgba(56, 189, 248, 0.45)"
                     : "1px solid rgba(255, 255, 255, 0.07)",
                   color: isMatch ? "#FFFFFF" : "var(--text-secondary)",
-                  fontSize: "0.78rem",
+                  fontSize: "0.74rem",
                   fontWeight: 600,
                   cursor: "pointer",
-                  transition: "all 0.2s ease",
+                  transition: "all 0.15s ease",
                 }}
               >
                 <span

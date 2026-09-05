@@ -85,6 +85,82 @@ function getYtDlpPath() {
   return "yt-dlp";
 }
 
+function getFfmpegDir() {
+  const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+
+  // 1. In dev, check local repo electron/bin
+  if (isDev) {
+    const devDir = path.join(__dirname, "bin");
+    if (fs.existsSync(path.join(devDir, "ffmpeg.exe"))) return devDir;
+    const parentDir = path.join(__dirname, "..", "electron", "bin");
+    if (fs.existsSync(path.join(parentDir, "ffmpeg.exe"))) return parentDir;
+  }
+
+  // 2. Check standard non-asar application directories
+  const nonAsarDirs = [
+    path.join(process.resourcesPath, "bin"),
+    path.join(process.resourcesPath, "app.asar.unpacked", "electron", "bin"),
+    path.join(path.dirname(process.execPath), "resources", "bin"),
+    path.join(path.dirname(process.execPath), "bin"),
+  ];
+
+  for (const dir of nonAsarDirs) {
+    if (!dir.includes("app.asar") && fs.existsSync(path.join(dir, "ffmpeg.exe"))) {
+      try {
+        if (fs.statSync(path.join(dir, "ffmpeg.exe")).size > 1000000) {
+          return dir;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 3. UserData persistent folder
+  const userDataBinDir = path.join(app.getPath("userData"), "bin");
+  const userDataFfmpeg = path.join(userDataBinDir, "ffmpeg.exe");
+  if (fs.existsSync(userDataFfmpeg)) {
+    try {
+      if (fs.statSync(userDataFfmpeg).size > 1000000) {
+        return userDataBinDir;
+      }
+    } catch (e) {}
+  }
+
+  // 4. Extract from inside app.asar if present
+  const internalSources = [
+    path.join(__dirname, "bin", "ffmpeg.exe"),
+    path.join(app.getAppPath(), "electron", "bin", "ffmpeg.exe"),
+    path.join(process.resourcesPath, "bin", "ffmpeg.exe"),
+  ];
+
+  for (const src of internalSources) {
+    try {
+      if (fs.existsSync(src)) {
+        if (!fs.existsSync(userDataBinDir)) {
+          fs.mkdirSync(userDataBinDir, { recursive: true });
+        }
+        const buffer = fs.readFileSync(src);
+        if (buffer && buffer.length > 1000000) {
+          fs.writeFileSync(userDataFfmpeg, buffer);
+          console.log("Successfully extracted ffmpeg.exe to userData:", userDataFfmpeg);
+          return userDataBinDir;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 5. Fallback: check known system path on user machine
+  const systemPaths = [
+    "C:\\Users\\mobpi\\Documents\\WorkSpace\\WS-1\\100tools\\backend\\ffmpeg-9.0-essentials_build\\bin",
+  ];
+  for (const sp of systemPaths) {
+    if (fs.existsSync(path.join(sp, "ffmpeg.exe"))) {
+      return sp;
+    }
+  }
+
+  return userDataBinDir;
+}
+
 function createWindow() {
   const iconPath = path.join(__dirname, "icon.png");
 
@@ -245,6 +321,7 @@ ipcMain.handle("download-media", async (event, options) => {
   const { id, url, formatId, ext, isAudio, title, resolution } = options;
   return new Promise((resolve, reject) => {
     const binPath = getYtDlpPath();
+    const ffmpegDir = getFfmpegDir();
     const downloadsDir = app.getPath("downloads");
     const safeTitle = (title || "video").replace(/[\\/*?:"<>|]/g, "_").slice(0, 45).trim();
     const outputTemplate = path.join(downloadsDir, `${safeTitle}_${resolution || "HD"}.%(ext)s`);
@@ -256,6 +333,10 @@ ipcMain.handle("download-media", async (event, options) => {
       "--js-runtimes",
       "node",
     ];
+
+    if (ffmpegDir && fs.existsSync(path.join(ffmpegDir, "ffmpeg.exe"))) {
+      args.push("--ffmpeg-location", ffmpegDir);
+    }
 
     if (isAudio || ext === "mp3") {
       args.push("-x", "--audio-format", "mp3");

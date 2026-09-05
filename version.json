@@ -1,12 +1,12 @@
 {
-  "version": "1.2.0",
-  "versionCode": 4,
+  "version": "1.2.1",
+  "versionCode": 5,
   "releaseDate": "2026-09-05",
-  "title": "Pie Video Downloader v1.2.0",
-  "releaseNotes": "In-App Seamless Auto-Updater: Live download progress with speed indicator, automated app restart & overwrite (no manual downloading or deletion required), updated nightly media engine, and improved error handling.",
-  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.0/Pie.Video.Downloader.Setup.1.2.0.exe",
-  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.0/Pie.Video.Downloader.Setup.1.2.0.exe",
-  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.0/Pie.Video.Downloader.1.2.0.exe",
-  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.0/Pie-Video-Downloader.apk",
-  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.2.0"
+  "title": "Pie Video Downloader v1.2.1",
+  "releaseNotes": "YouTube video audio merge fix with embedded ffmpeg muxing engine, compact streamlined video preview and buttons, removed redundant share button, and optimized spacing.",
+  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.1/Pie.Video.Downloader.Setup.1.2.1.exe",
+  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.1/Pie.Video.Downloader.Setup.1.2.1.exe",
+  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.1/Pie.Video.Downloader.1.2.1.exe",
+  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.1/Pie-Video-Downloader.apk",
+  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.2.1"
 }

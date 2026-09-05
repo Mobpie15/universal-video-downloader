@@ -6,12 +6,11 @@ import {
   VideoIcon,
   AudioIcon,
   TrashIcon,
-  ShareIcon,
   LibraryIcon,
   FolderIcon,
   PlayIcon,
 } from "./icons/Icons.jsx";
-import { shareFile, showToast } from "../engine/nativeBridge.js";
+import { showToast } from "../engine/nativeBridge.js";
 
 export const DownloadQueue = ({
   items,
@@ -58,18 +57,6 @@ export const DownloadQueue = ({
       }
     } catch (e) {
       showToast("Unable to open folder");
-    }
-  };
-
-  const handleShare = async (item) => {
-    try {
-      await shareFile({
-        title: item.title,
-        text: `Watch: ${item.title}`,
-        url: item.path || item.blobUrl || "",
-      });
-    } catch (e) {
-      showToast("Unable to share file");
     }
   };
 
@@ -551,30 +538,6 @@ export const DownloadQueue = ({
                     >
                       <FolderIcon size={14} />
                       <span>{isElectron ? "Explorer" : "Locate"}</span>
-                    </button>
-
-                    {/* Share Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleShare(item)}
-                      style={{
-                        padding: "8px 10px",
-                        borderRadius: "10px",
-                        background: "rgba(255, 255, 255, 0.05)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        color: "#FFFFFF",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        fontSize: "0.74rem",
-                        fontWeight: 600,
-                        transition: "all 0.2s ease",
-                        cursor: "pointer",
-                      }}
-                      title="Share Video"
-                    >
-                      <ShareIcon size={13} />
-                      <span>Share</span>
                     </button>
 
                     {/* Delete Button */}
