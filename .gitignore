@@ -30,3 +30,6 @@ android/app/*.iml
 *.njsproj
 *.sln
 *.sw?
+build-output*/
+*.keystore
+START-APP.bat

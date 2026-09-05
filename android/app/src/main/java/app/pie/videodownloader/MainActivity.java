@@ -1,4 +1,4 @@
-package online.pietools.videodownloader;
+package app.pie.videodownloader;
 
 import com.getcapacitor.BridgeActivity;
 

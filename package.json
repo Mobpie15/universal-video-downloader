@@ -32,8 +32,8 @@
     "vite": "^6.0.5"
   },
   "build": {
-    "appId": "online.pietools.videodownloader",
-    "productName": "PIETools Universal Downloader",
+    "appId": "app.pie.videodownloader",
+    "productName": "Pie Video Downloader",
     "directories": {
       "output": "dist-electron"
     },

@@ -1,15 +1,9 @@
 {
-  "appId": "online.pietools.videodownloader",
-  "appName": "PIETools Downloader",
+  "appId": "app.pie.videodownloader",
+  "appName": "Pie Video Downloader",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https",
-    "cleartext": true
-  },
-  "android": {
-    "allowMixedContent": true,
-    "captureInput": true,
-    "webContentsDebuggingEnabled": false
+    "androidScheme": "https"
   },
   "plugins": {
     "CapacitorHttp": {
