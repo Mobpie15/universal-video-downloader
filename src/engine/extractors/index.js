@@ -19,6 +19,18 @@ export const detectPlatform = (url) => {
 };
 
 export const extractMedia = async (url) => {
+  // If running in Desktop App, use native high-performance engine for all sites
+  if (typeof window !== "undefined" && window.electronAPI && typeof window.electronAPI.extractMedia === "function") {
+    try {
+      const desktopResult = await window.electronAPI.extractMedia(url);
+      if (desktopResult && desktopResult.formats && desktopResult.formats.length > 0) {
+        return desktopResult;
+      }
+    } catch (e) {
+      console.warn("Desktop native extraction fallback to web extractors:", e);
+    }
+  }
+
   const platform = detectPlatform(url);
 
   switch (platform) {

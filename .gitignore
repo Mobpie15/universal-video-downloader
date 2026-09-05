@@ -33,3 +33,5 @@ android/app/*.iml
 build-output*/
 *.keystore
 START-APP.bat
+electron/bin/
+

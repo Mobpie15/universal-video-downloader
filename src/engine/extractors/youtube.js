@@ -1,6 +1,8 @@
 /**
- * YouTube Client-Side Innertube Extractor
- * Executes directly on client device via Android / Web client profiles
+ * YouTube Multi-Tier Extractor
+ * Tier 1: Desktop Native Engine (yt-dlp via Electron IPC bridge)
+ * Tier 2: PieTools Cloud API (https://pietools.online/api/info)
+ * Tier 3: OEmbed & Stream Resolver Fallback
  */
 
 export const extractYouTube = async (url) => {
@@ -8,178 +10,154 @@ export const extractYouTube = async (url) => {
   const regExp = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/|live\/))([\w-]{11})/;
   const match = url.match(regExp);
   if (!match || !match[1]) {
-    throw new Error("Invalid YouTube video or Shorts URL");
+    throw new Error("Invalid YouTube video or Shorts link. Please enter a valid URL.");
   }
   const videoId = match[1];
 
-  // Call YouTube Innertube API using mobile client strategy
-  const innertubeBody = {
-    context: {
-      client: {
-        clientName: "ANDROID",
-        clientVersion: "19.09.37",
-        androidSdkVersion: 34,
-        hl: "en",
-        gl: "US",
-        utcOffsetMinutes: 0,
-      },
-    },
-    videoId: videoId,
-    contentCheckOk: true,
-    racyCheckOk: true,
-  };
-
-  const response = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 14; US) gzip",
-    },
-    body: JSON.stringify(innertubeBody),
-  });
-
-  if (!response.ok) {
-    throw new Error(`YouTube API request failed with status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const playability = data.playabilityStatus || {};
-
-  if (playability.status !== "OK" && playability.status !== "LIVE_STREAM_OFFLINE") {
-    // If Android client is blocked or restricted, try TV client
-    return await extractYouTubeTvClient(videoId);
-  }
-
-  const videoDetails = data.videoDetails || {};
-  const streamingData = data.streamingData || {};
-  const formats = [];
-
-  // Combined formats (Video + Audio)
-  if (streamingData.formats) {
-    for (const f of streamingData.formats) {
-      if (f.url) {
-        formats.push({
-          formatId: `${f.itag}`,
-          resolution: f.qualityLabel || `${f.height}p` || "Standard",
-          quality: f.quality || "medium",
-          ext: f.mimeType?.includes("mp4") ? "mp4" : "webm",
-          url: f.url,
-          filesize: f.contentLength ? parseInt(f.contentLength, 10) : null,
-          hasAudio: true,
-          hasVideo: true,
-          type: "video",
-          label: `${f.qualityLabel || `${f.height}p`} (MP4 Video + Audio)`,
-        });
+  // Tier 1: If running inside Electron Desktop App, use Native Desktop Extractor
+  if (typeof window !== "undefined" && window.electronAPI && typeof window.electronAPI.extractMedia === "function") {
+    try {
+      const desktopResult = await window.electronAPI.extractMedia(url);
+      if (desktopResult && desktopResult.formats && desktopResult.formats.length > 0) {
+        return desktopResult;
       }
+    } catch (desktopErr) {
+      console.warn("Desktop native extraction fell back to cloud API:", desktopErr.message);
     }
   }
 
-  // Adaptive formats (High-res video only & Audio only)
-  if (streamingData.adaptiveFormats) {
-    for (const f of streamingData.adaptiveFormats) {
-      if (f.url) {
-        const isAudio = f.mimeType?.startsWith("audio/");
-        const isVideo = f.mimeType?.startsWith("video/");
+  // Tier 2: Official PieTools Media API
+  try {
+    const pieRes = await fetch("https://pietools.online/api/info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+      signal: AbortSignal.timeout(5000),
+    });
 
-        if (isAudio) {
-          formats.push({
-            formatId: `${f.itag}`,
-            resolution: `${Math.round((f.bitrate || 128000) / 1000)}kbps`,
-            quality: "audio",
-            ext: f.mimeType?.includes("mp4") ? "m4a" : "opus",
-            url: f.url,
-            filesize: f.contentLength ? parseInt(f.contentLength, 10) : null,
-            hasAudio: true,
-            hasVideo: false,
-            type: "audio",
-            label: `Audio Only (${Math.round((f.bitrate || 128000) / 1000)} kbps ${f.mimeType?.includes("mp4") ? "M4A" : "WebM"})`,
-          });
-        } else if (isVideo && f.qualityLabel) {
-          // Add 1080p, 1440p, 4K video formats
-          formats.push({
-            formatId: `${f.itag}`,
-            resolution: f.qualityLabel,
-            quality: f.quality,
-            ext: f.mimeType?.includes("mp4") ? "mp4" : "webm",
-            url: f.url,
-            filesize: f.contentLength ? parseInt(f.contentLength, 10) : null,
-            hasAudio: false,
-            hasVideo: true,
-            type: "video_adaptive",
-            label: `${f.qualityLabel} (${f.mimeType?.includes("mp4") ? "MP4" : "WebM"})`,
-          });
+    if (pieRes.ok) {
+      const pieData = await pieRes.json();
+      if (pieData.success) {
+        const formats = [];
+
+        // Map video qualities
+        if (pieData.video_qualities && pieData.video_qualities.length > 0) {
+          for (const q of pieData.video_qualities) {
+            formats.push({
+              formatId: `pie-v-${q.height}`,
+              resolution: `${q.height}p HD`,
+              ext: "mp4",
+              url: pieData.direct_stream_url || `https://pietools.online/api/download-file?id=${videoId}&q=${q.height}`,
+              hasAudio: true,
+              hasVideo: true,
+              type: "video",
+              label: q.label || `${q.height}p HD (MP4 Video)`,
+            });
+          }
+        }
+
+        // Map audio qualities
+        if (pieData.audio_qualities && pieData.audio_qualities.length > 0) {
+          for (const a of pieData.audio_qualities) {
+            formats.push({
+              formatId: `pie-a-${a.bitrate}`,
+              resolution: `${a.bitrate}kbps`,
+              ext: "mp3",
+              url: pieData.direct_stream_url || `https://pietools.online/api/download-file?id=${videoId}&a=${a.bitrate}`,
+              hasAudio: true,
+              hasVideo: false,
+              type: "audio",
+              label: a.label || `${a.bitrate} kbps (MP3 Audio)`,
+            });
+          }
+        }
+
+        if (formats.length > 0) {
+          return {
+            platform: "youtube",
+            id: videoId,
+            title: pieData.title || "YouTube Video",
+            author: pieData.uploader || "YouTube Creator",
+            duration: pieData.duration || 0,
+            thumbnail: pieData.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+            formats,
+          };
         }
       }
     }
+  } catch (err) {
+    console.warn("PieTools cloud API attempt timed out or failed:", err.message);
   }
 
-  // Select best thumbnail
-  const thumbs = videoDetails.thumbnail?.thumbnails || [];
-  const thumbnail = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  // Tier 3: Direct YouTube oEmbed Metadata Resolver Fallback
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    const oembedRes = await fetch(oembedUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(4000),
+    });
 
-  return {
-    platform: "youtube",
-    id: videoId,
-    title: videoDetails.title || "YouTube Video",
-    author: videoDetails.author || "Unknown Channel",
-    duration: parseInt(videoDetails.lengthSeconds, 10) || 0,
-    thumbnail,
-    formats,
-  };
-};
+    if (oembedRes.ok) {
+      const data = await oembedRes.json();
+      const thumb = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 
-const extractYouTubeTvClient = async (videoId) => {
-  const tvBody = {
-    context: {
-      client: {
-        clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
-        clientVersion: "2.0",
-        hl: "en",
-        gl: "US",
-      },
-    },
-    videoId: videoId,
-  };
-
-  const response = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": "Mozilla/5.0 (SmartHub; SMART-TV; Linux/SmartTV) AppleWebKit/538.1 (KHTML, like Gecko) Safari/538.1",
-    },
-    body: JSON.stringify(tvBody),
-  });
-
-  const data = await response.json();
-  const videoDetails = data.videoDetails || {};
-  const streamingData = data.streamingData || {};
-  const formats = [];
-
-  if (streamingData.formats) {
-    for (const f of streamingData.formats) {
-      if (f.url) {
-        formats.push({
-          formatId: `${f.itag}`,
-          resolution: f.qualityLabel || `${f.height}p`,
-          ext: "mp4",
-          url: f.url,
-          filesize: f.contentLength ? parseInt(f.contentLength, 10) : null,
-          hasAudio: true,
-          hasVideo: true,
-          type: "video",
-          label: `${f.qualityLabel || `${f.height}p`} (MP4 Video)`,
-        });
-      }
+      return {
+        platform: "youtube",
+        id: videoId,
+        title: data.title || "YouTube Video",
+        author: data.author_name || "YouTube Creator",
+        duration: 0,
+        thumbnail: thumb,
+        formats: [
+          {
+            formatId: "yt-1080",
+            resolution: "1080p Full HD",
+            ext: "mp4",
+            url: `https://pietools.online/api/download-file?id=${videoId}&q=1080`,
+            hasAudio: true,
+            hasVideo: true,
+            type: "video",
+            label: "1080p Full HD (Universal MP4)",
+          },
+          {
+            formatId: "yt-720",
+            resolution: "720p HD",
+            ext: "mp4",
+            url: `https://pietools.online/api/download-file?id=${videoId}&q=720`,
+            hasAudio: true,
+            hasVideo: true,
+            type: "video",
+            label: "720p HD (Universal MP4)",
+          },
+          {
+            formatId: "yt-360",
+            resolution: "360p Data Saver",
+            ext: "mp4",
+            url: `https://pietools.online/api/download-file?id=${videoId}&q=360`,
+            hasAudio: true,
+            hasVideo: true,
+            type: "video",
+            label: "360p Data Saver (MP4)",
+          },
+          {
+            formatId: "yt-audio-320",
+            resolution: "320kbps",
+            ext: "mp3",
+            url: `https://pietools.online/api/download-file?id=${videoId}&a=320`,
+            hasAudio: true,
+            hasVideo: false,
+            type: "audio",
+            label: "Ultra Studio Audio (320 kbps MP3)",
+          },
+        ],
+      };
     }
+  } catch (err) {
+    console.warn("oEmbed fallback failed:", err.message);
   }
 
-  return {
-    platform: "youtube",
-    id: videoId,
-    title: videoDetails.title || "YouTube Video",
-    author: videoDetails.author || "Creator",
-    duration: parseInt(videoDetails.lengthSeconds, 10) || 0,
-    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-    formats,
-  };
+  throw new Error(
+    "Unable to resolve YouTube video. Please ensure the link is public and accessible."
+  );
 };
+

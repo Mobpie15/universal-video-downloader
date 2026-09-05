@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { DownloadIcon, SettingsIcon, LibraryIcon } from "./icons/Icons.jsx";
 
 export const Navbar = ({ onOpenSettings, onOpenDownloads, downloadsCount = 0 }) => {
@@ -29,22 +29,17 @@ export const Navbar = ({ onOpenSettings, onOpenDownloads, downloadsCount = 0 }) 
       >
         {/* Brand Identity */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
+          <img
+            src="/logo.png"
+            alt="Pie Video Downloader"
             style={{
               width: "36px",
               height: "36px",
-              borderRadius: "11px",
-              background: "linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#FFFFFF",
-              boxShadow: "0 3px 12px rgba(239, 68, 68, 0.35)",
+              objectFit: "contain",
+              filter: "drop-shadow(0 2px 10px rgba(56, 189, 248, 0.4))",
               flexShrink: 0,
             }}
-          >
-            <DownloadIcon size={20} />
-          </div>
+          />
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span
