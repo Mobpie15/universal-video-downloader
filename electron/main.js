@@ -208,6 +208,8 @@ ipcMain.handle("extract-media", async (event, url) => {
       "--no-warnings",
       "--skip-download",
       "--no-playlist",
+      "--extractor-retries", "5",
+      "--retry-sleep", "extractor:5",
       url.trim(),
     ];
 
@@ -332,6 +334,9 @@ ipcMain.handle("download-media", async (event, options) => {
       "--newline",
       "--js-runtimes",
       "node",
+      "--extractor-retries", "5",
+      "--retry-sleep", "extractor:5",
+      "--file-access-retries", "3",
     ];
 
     if (ffmpegDir && fs.existsSync(path.join(ffmpegDir, "ffmpeg.exe"))) {
@@ -548,26 +553,35 @@ ipcMain.handle("install-and-restart", async () => {
   const portableTarget = process.env.PORTABLE_EXECUTABLE_FILE;
 
   if (isPortable && portableTarget) {
+    // Portable exe: use bat to wait for exit, copy over, restart
     const updaterBat = path.join(app.getPath("temp"), "pie-apply-portable-update.bat");
     const batContent = `@echo off
 chcp 65001 > nul
 echo Updating Pie Video Downloader...
-timeout /t 2 /nobreak > nul
-copy /y "${downloadedUpdatePath.replace(/\\/g, "\\\\")}" "${portableTarget.replace(/\\/g, "\\\\")}" > nul
-start "" "${portableTarget.replace(/\\/g, "\\\\")}"
-del "${downloadedUpdatePath.replace(/\\/g, "\\\\")}" > nul 2>&1
+timeout /t 3 /nobreak > nul
+taskkill /f /pid ${process.pid} > nul 2>&1
+timeout /t 1 /nobreak > nul
+copy /y "${downloadedUpdatePath}" "${portableTarget}" > nul
+if errorlevel 1 (
+  echo Update failed. Please try again.
+  pause
+  exit /b 1
+)
+start "" "${portableTarget}"
+del "${downloadedUpdatePath}" > nul 2>&1
 (goto) 2>nul & del "%~f0"
 `;
     fs.writeFileSync(updaterBat, batContent, "utf8");
     const batProc = spawn("cmd.exe", ["/c", updaterBat], {
       detached: true,
       stdio: "ignore",
+      windowsHide: true,
     });
     batProc.unref();
     app.quit();
     return true;
   } else {
-    // NSIS installer
+    // NSIS installer: run silently, it handles everything
     const instProc = spawn(downloadedUpdatePath, ["/S"], {
       detached: true,
       stdio: "ignore",

@@ -11,7 +11,7 @@ import { extractMedia } from "./engine/extractors/index.js";
 import { universalDownloader } from "./engine/downloader.js";
 import { showToast, readClipboard } from "./engine/nativeBridge.js";
 import { checkForUpdates } from "./engine/updater.js";
-import { CloseIcon } from "./components/icons/Icons.jsx";
+import { CloseIcon, DownloadIcon, RefreshIcon } from "./components/icons/Icons.jsx";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("downloader"); // "downloader" | "downloads" | "settings"
@@ -24,6 +24,9 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [reportModalData, setReportModalData] = useState(null);
   const [updatePrompt, setUpdatePrompt] = useState(null);
+  // NEW: Track download state for clean single-screen UX
+  const [isDownloadActive, setIsDownloadActive] = useState(false);
+  const [lastDownloadCompleted, setLastDownloadCompleted] = useState(false);
 
   // Auto-check for updates & detect URL from clipboard on app launch
   useEffect(() => {
@@ -69,6 +72,8 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     setMedia(null);
+    setIsDownloadActive(false);
+    setLastDownloadCompleted(false);
 
     try {
       const extracted = await extractMedia(url.trim());
@@ -94,6 +99,8 @@ export default function App() {
     if (!media || !fmt) return;
     const downloadId = `${media.id}-${fmt.formatId}-${Date.now()}`;
     setDownloadingFormatId(fmt.formatId);
+    setIsDownloadActive(true);
+    setLastDownloadCompleted(false);
 
     const safeTitle = media.title.replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 40);
     const fileName = `${safeTitle}_${fmt.resolution}.${fmt.ext}`;
@@ -111,8 +118,6 @@ export default function App() {
     };
 
     setDownloadQueue((prev) => [queueItem, ...prev]);
-
-    // Switch to downloader or notify
     showToast("Download started...");
 
     universalDownloader.startDownload({
@@ -137,6 +142,8 @@ export default function App() {
       },
       onComplete: ({ success, path, blobUrl }) => {
         setDownloadingFormatId(null);
+        setIsDownloadActive(false);
+        setLastDownloadCompleted(true);
         setDownloadQueue((prev) =>
           prev.map((item) =>
             item.id === downloadId
@@ -148,6 +155,8 @@ export default function App() {
       },
       onError: (err) => {
         setDownloadingFormatId(null);
+        setIsDownloadActive(false);
+        setLastDownloadCompleted(false);
         setDownloadQueue((prev) =>
           prev.map((item) =>
             item.id === downloadId
@@ -169,6 +178,7 @@ export default function App() {
   const handleCancelDownload = (id) => {
     universalDownloader.cancelDownload(id);
     setDownloadQueue((prev) => prev.filter((item) => item.id !== id));
+    setIsDownloadActive(false);
     showToast("Download cancelled");
   };
 
@@ -189,6 +199,27 @@ export default function App() {
     }
   };
 
+  // Reset to fresh state for new download
+  const handleDownloadAnother = () => {
+    setUrl("");
+    setMedia(null);
+    setError(null);
+    setIsDownloadActive(false);
+    setLastDownloadCompleted(false);
+    setDownloadingFormatId(null);
+  };
+
+  // Go back to format selection for same video
+  const handleDownloadMoreQualities = () => {
+    setIsDownloadActive(false);
+    setLastDownloadCompleted(false);
+    setDownloadingFormatId(null);
+  };
+
+  // Determine if we should show the download panel instead of input+preview
+  const hasActiveDownload = downloadQueue.some((i) => i.status === "downloading");
+  const showDownloadPanel = isDownloadActive || hasActiveDownload || lastDownloadCompleted;
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Native App Bar */}
@@ -196,8 +227,6 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={handleTabSelect}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenDownloads={() => setActiveTab("downloads")}
-        downloadsCount={downloadQueue.length}
       />
 
       {/* Main Container */}
@@ -213,83 +242,166 @@ export default function App() {
       >
         {activeTab === "downloader" ? (
           <>
-            {/* Search Input & Platform Shortcuts */}
-            <UrlInput
-              url={url}
-              setUrl={setUrl}
-              onFetch={handleFetchMedia}
-              isLoading={isLoading}
-            />
+            {/* Show URL input + Media preview ONLY when NOT in download mode */}
+            {!showDownloadPanel && (
+              <>
+                <UrlInput
+                  url={url}
+                  setUrl={setUrl}
+                  onFetch={handleFetchMedia}
+                  isLoading={isLoading}
+                />
 
-            {/* Error Message Box */}
-            {error && (
-              <div
-                style={{
-                  padding: "12px 14px",
-                  background: "rgba(239, 68, 68, 0.12)",
-                  border: "1px solid rgba(239, 68, 68, 0.35)",
-                  borderRadius: "14px",
-                  color: "#FCA5A5",
-                  fontSize: "0.84rem",
-                  marginBottom: "20px",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                }}
-              >
-                <span style={{ flex: 1, minWidth: "180px" }}>{error}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setReportModalData({
-                        errorMessage: error,
-                        targetUrl: url.trim(),
-                        context: "Media Extraction Failure",
-                      })
-                    }
+                {/* Error Message Box */}
+                {error && (
+                  <div
                     style={{
-                      padding: "5px 10px",
-                      borderRadius: "8px",
-                      background: "rgba(239, 68, 68, 0.2)",
-                      border: "1px solid rgba(239, 68, 68, 0.4)",
-                      color: "#FFFFFF",
-                      fontSize: "0.74rem",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
+                      padding: "12px 14px",
+                      background: "rgba(239, 68, 68, 0.12)",
+                      border: "1px solid rgba(239, 68, 68, 0.35)",
+                      borderRadius: "14px",
+                      color: "#FCA5A5",
+                      fontSize: "0.84rem",
+                      marginBottom: "20px",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "10px",
                     }}
                   >
-                    Facing issue? Report to Developer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setError(null)}
-                    style={{ color: "var(--accent-red)", padding: "2px" }}
-                  >
-                    <CloseIcon size={16} />
-                  </button>
-                </div>
-              </div>
+                    <span style={{ flex: 1, minWidth: "180px" }}>{error}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReportModalData({
+                            errorMessage: error,
+                            targetUrl: url.trim(),
+                            context: "Media Extraction Failure",
+                          })
+                        }
+                        style={{
+                          padding: "5px 10px",
+                          borderRadius: "8px",
+                          background: "rgba(239, 68, 68, 0.2)",
+                          border: "1px solid rgba(239, 68, 68, 0.4)",
+                          color: "#FFFFFF",
+                          fontSize: "0.74rem",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Facing issue? Report to Developer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setError(null)}
+                        style={{ color: "var(--accent-red)", padding: "2px" }}
+                      >
+                        <CloseIcon size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Preview & Format Selection */}
+                <MediaPreview
+                  media={media}
+                  onDownloadFormat={handleDownloadFormat}
+                  downloadingFormatId={downloadingFormatId}
+                />
+              </>
             )}
 
-            {/* Video Preview & Format Selection */}
-            <MediaPreview
-              media={media}
-              onDownloadFormat={handleDownloadFormat}
-              downloadingFormatId={downloadingFormatId}
-            />
+            {/* Download Progress Panel - replaces everything above when active */}
+            {showDownloadPanel && (
+              <>
+                <DownloadQueue
+                  items={downloadQueue}
+                  onCancelDownload={handleCancelDownload}
+                  onClearCompleted={handleClearCompleted}
+                  onDeleteItem={handleDeleteItem}
+                  isFullView={false}
+                />
 
-            {/* Active Downloads & Recent 3 Downloads */}
-            <DownloadQueue
-              items={downloadQueue}
-              onCancelDownload={handleCancelDownload}
-              onClearCompleted={handleClearCompleted}
-              onDeleteItem={handleDeleteItem}
-              isFullView={false}
-            />
+                {/* Action buttons after download completes */}
+                {lastDownloadCompleted && !hasActiveDownload && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      marginTop: "16px",
+                    }}
+                  >
+                    {/* Download Another Video */}
+                    <button
+                      type="button"
+                      onClick={handleDownloadAnother}
+                      style={{
+                        flex: 1,
+                        padding: "12px 16px",
+                        borderRadius: "12px",
+                        background: "var(--accent-gradient)",
+                        color: "#FFFFFF",
+                        fontWeight: 700,
+                        fontSize: "0.85rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 16px rgba(37, 99, 235, 0.35)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <DownloadIcon size={16} />
+                      <span>Download Another Video</span>
+                    </button>
+
+                    {/* Download More Qualities */}
+                    {media && (
+                      <button
+                        type="button"
+                        onClick={handleDownloadMoreQualities}
+                        style={{
+                          flex: 1,
+                          padding: "12px 16px",
+                          borderRadius: "12px",
+                          background: "rgba(56, 189, 248, 0.12)",
+                          border: "1px solid rgba(56, 189, 248, 0.35)",
+                          color: "var(--accent-cyan)",
+                          fontWeight: 700,
+                          fontSize: "0.85rem",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        <RefreshIcon size={16} />
+                        <span>More Qualities</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Show download history on home when not in download mode */}
+            {!showDownloadPanel && (
+              <DownloadQueue
+                items={downloadQueue}
+                onCancelDownload={handleCancelDownload}
+                onClearCompleted={handleClearCompleted}
+                onDeleteItem={handleDeleteItem}
+                isFullView={false}
+              />
+            )}
           </>
         ) : (
           /* "My Files" Library Tab */

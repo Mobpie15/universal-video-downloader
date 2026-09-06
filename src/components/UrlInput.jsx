@@ -1,25 +1,11 @@
 import React, { useState, useEffect } from "react";
-import {
-  DownloadIcon,
-  CloseIcon,
-  CopyIcon,
-  RefreshIcon,
-  PlatformYouTubeIcon,
-  PlatformInstagramIcon,
-  PlatformTikTokIcon,
-  PlatformFacebookIcon,
-  PlatformTwitterIcon,
-  PlatformGenericIcon,
-  SparklesIcon,
-} from "./icons/Icons.jsx";
+import { DownloadIcon, CloseIcon, CopyIcon, RefreshIcon, SparklesIcon } from "./icons/Icons.jsx";
 import { detectPlatform } from "../engine/extractors/index.js";
 import { readClipboard, showToast } from "../engine/nativeBridge.js";
 
 export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
-  const currentPlatform = detectPlatform(url);
   const [clipboardUrl, setClipboardUrl] = useState(null);
 
-  // Periodic or focus clipboard check
   useEffect(() => {
     const checkClipboard = async () => {
       try {
@@ -38,9 +24,7 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
             setClipboardUrl(text.trim());
           }
         }
-      } catch (e) {
-        // clipboard permission or empty
-      }
+      } catch (e) {}
     };
     checkClipboard();
   }, [url]);
@@ -51,7 +35,7 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
       if (text && text.trim()) {
         setUrl(text.trim());
         setClipboardUrl(null);
-        showToast("Link pasted from clipboard");
+        showToast("Link pasted");
       } else {
         showToast("Clipboard is empty");
       }
@@ -64,7 +48,6 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
     if (clipboardUrl) {
       setUrl(clipboardUrl);
       setClipboardUrl(null);
-      showToast("Link applied");
     }
   };
 
@@ -74,154 +57,95 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
     }
   };
 
-  const getPlatformIcon = (plat) => {
-    switch (plat) {
-      case "youtube":
-        return <PlatformYouTubeIcon size={20} />;
-      case "instagram":
-        return <PlatformInstagramIcon size={20} />;
-      case "tiktok":
-        return <PlatformTikTokIcon size={20} />;
-      case "facebook":
-        return <PlatformFacebookIcon size={20} />;
-      case "twitter":
-        return <PlatformTwitterIcon size={20} />;
-      default:
-        return <DownloadIcon size={20} />;
-    }
-  };
-
-  const platforms = [
-    { name: "YouTube", label: "4K, HD & MP3", icon: <PlatformYouTubeIcon size={20} />, color: "#FF0000", glow: "rgba(255, 0, 0, 0.25)" },
-    { name: "Instagram", label: "Reels & Stories", icon: <PlatformInstagramIcon size={20} />, color: "#E1306C", glow: "rgba(225, 48, 108, 0.25)" },
-    { name: "TikTok", label: "No Watermark", icon: <PlatformTikTokIcon size={20} />, color: "#00F2FE", glow: "rgba(0, 242, 254, 0.25)" },
-    { name: "Facebook", label: "Reels & Video", icon: <PlatformFacebookIcon size={20} />, color: "#1877F2", glow: "rgba(24, 119, 242, 0.25)" },
-    { name: "Twitter / X", label: "Crisp MP4", icon: <PlatformTwitterIcon size={20} />, color: "#FFFFFF", glow: "rgba(255, 255, 255, 0.18)" },
-    { name: "Any Link", label: "Direct Stream", icon: <PlatformGenericIcon size={20} />, color: "#10B981", glow: "rgba(16, 185, 129, 0.25)" },
-  ];
+  const platform = detectPlatform(url);
+  const platformLabel = {
+    youtube: "YouTube",
+    instagram: "Instagram",
+    tiktok: "TikTok",
+    facebook: "Facebook",
+    twitter: "X / Twitter",
+  }[platform];
 
   return (
-    <div style={{ width: "100%", marginBottom: "16px" }}>
-      {/* Smart Clipboard Notification Banner */}
+    <div style={{ width: "100%", marginBottom: "20px" }} className="animate-fadeIn">
+      {/* Clipboard Smart Banner */}
       {clipboardUrl && !url && (
-        <div
+        <button
+          type="button"
           onClick={handleApplyClipboard}
-          className="glass-panel"
           style={{
-            background: "linear-gradient(135deg, rgba(37, 99, 235, 0.22) 0%, rgba(56, 189, 248, 0.18) 100%)",
-            border: "1px solid rgba(56, 189, 248, 0.4)",
-            borderRadius: "14px",
-            padding: "9px 14px",
-            marginBottom: "12px",
+            width: "100%",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-            boxShadow: "0 0 20px rgba(56, 189, 248, 0.15)",
+            gap: "10px",
+            padding: "10px 14px",
+            marginBottom: "12px",
+            borderRadius: "var(--radius-md)",
+            background: "var(--accent-muted)",
+            border: "1px solid rgba(99, 102, 241, 0.2)",
+            color: "var(--text-primary)",
+            textAlign: "left",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
-            <div
-              style={{
-                width: "24px",
-                height: "24px",
-                borderRadius: "6px",
-                background: "rgba(56, 189, 248, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--accent-cyan)",
-                flexShrink: 0,
-              }}
-            >
-              <SparklesIcon size={14} />
+          <SparklesIcon size={16} style={{ color: "var(--accent-light)", flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "1px" }}>
+              Video link found in clipboard
             </div>
-            <div style={{ overflow: "hidden" }}>
-              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#FFFFFF" }}>
-                Found link in clipboard
-              </div>
-              <div
-                style={{
-                  fontSize: "0.68rem",
-                  color: "var(--text-secondary)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxWidth: "320px",
-                }}
-              >
-                {clipboardUrl}
-              </div>
+            <div style={{
+              fontSize: "0.72rem",
+              color: "var(--text-secondary)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}>
+              {clipboardUrl}
             </div>
           </div>
-          <span
-            style={{
-              padding: "4px 12px",
-              background: "var(--accent-gradient)",
-              color: "#FFFFFF",
-              borderRadius: "8px",
-              fontSize: "0.74rem",
-              fontWeight: 800,
-              flexShrink: 0,
-            }}
-          >
-            Paste
+          <span style={{
+            padding: "4px 12px",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--accent-gradient)",
+            color: "#FFF",
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            flexShrink: 0,
+          }}>
+            Use
           </span>
-        </div>
+        </button>
       )}
 
-      {/* Main Glass Console */}
-      <div
-        className="glass-panel"
-        style={{
-          borderRadius: "16px",
-          padding: "12px 14px",
-          border: `1.5px solid ${url ? "rgba(56, 189, 248, 0.45)" : "rgba(255, 255, 255, 0.08)"}`,
-          boxShadow: url
-            ? "0 8px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(56, 189, 248, 0.15)"
-            : "0 6px 20px rgba(0, 0, 0, 0.3)",
-          transition: "all 0.25s ease",
-        }}
-      >
-        {/* Input Bar Row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            background: "var(--bg-input)",
-            borderRadius: "11px",
-            padding: "5px 10px 5px 12px",
-            marginBottom: "10px",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-          }}
-        >
-          <div
-            style={{
-              color: currentPlatform !== "generic" ? "var(--accent-cyan)" : "var(--text-muted)",
-              display: "flex",
-              alignItems: "center",
-              marginRight: "8px",
-              flexShrink: 0,
-            }}
-          >
-            {getPlatformIcon(currentPlatform)}
-          </div>
-
+      {/* Input + Button */}
+      <div style={{
+        background: "var(--bg-secondary)",
+        border: `1px solid ${url ? "var(--border-active)" : "var(--border)"}`,
+        borderRadius: "var(--radius-lg)",
+        padding: "6px",
+        transition: "border-color 0.2s ease",
+      }}>
+        {/* Input Row */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "6px 10px",
+          gap: "8px",
+        }}>
           <input
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Paste video or reel URL here..."
+            placeholder="Paste video link here..."
             style={{
               flex: 1,
               background: "transparent",
               border: "none",
               outline: "none",
-              color: "#FFFFFF",
-              fontSize: "0.88rem",
+              color: "var(--text-primary)",
+              fontSize: "0.9rem",
               fontWeight: 500,
-              padding: "6px 0",
+              padding: "4px 0",
               minWidth: 0,
             }}
           />
@@ -231,19 +155,14 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
               type="button"
               onClick={() => setUrl("")}
               style={{
-                padding: "5px",
-                color: "var(--text-muted)",
+                padding: "6px",
+                color: "var(--text-tertiary)",
                 display: "flex",
                 alignItems: "center",
-                flexShrink: 0,
                 borderRadius: "6px",
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
               }}
-              title="Clear input"
             >
-              <CloseIcon size={15} />
+              <CloseIcon size={16} />
             </button>
           ) : (
             <button
@@ -251,17 +170,16 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
               onClick={handlePaste}
               style={{
                 padding: "5px 10px",
-                borderRadius: "8px",
-                background: "rgba(56, 189, 248, 0.14)",
-                border: "1px solid rgba(56, 189, 248, 0.25)",
-                color: "var(--accent-cyan)",
-                fontSize: "0.74rem",
-                fontWeight: 700,
+                borderRadius: "var(--radius-sm)",
+                background: "var(--bg-elevated)",
+                border: "1px solid var(--border)",
+                color: "var(--text-secondary)",
+                fontSize: "0.76rem",
+                fontWeight: 600,
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
                 flexShrink: 0,
-                cursor: "pointer",
               }}
             >
               <CopyIcon size={12} />
@@ -270,144 +188,56 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
           )}
         </div>
 
-        {/* Primary Download / Fetch Action Button */}
+        {/* Fetch Button */}
         <button
           type="button"
           onClick={onFetch}
           disabled={!url.trim() || isLoading}
           style={{
             width: "100%",
-            padding: "10px 16px",
-            borderRadius: "11px",
-            background:
-              !url.trim() || isLoading
-                ? "rgba(255, 255, 255, 0.06)"
-                : "var(--accent-gradient)",
-            color: !url.trim() || isLoading ? "var(--text-muted)" : "#FFFFFF",
-            fontWeight: 700,
+            padding: "11px 16px",
+            borderRadius: "var(--radius-md)",
+            background: !url.trim() || isLoading
+              ? "var(--bg-elevated)"
+              : "var(--accent-gradient)",
+            color: !url.trim() || isLoading ? "var(--text-tertiary)" : "#FFFFFF",
+            fontWeight: 600,
             fontSize: "0.88rem",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "8px",
-            border: "none",
-            boxShadow:
-              url.trim() && !isLoading
-                ? "0 4px 16px rgba(37, 99, 235, 0.35)"
-                : "none",
             cursor: !url.trim() || isLoading ? "not-allowed" : "pointer",
+            boxShadow: url.trim() && !isLoading ? "var(--accent-glow)" : "none",
             transition: "all 0.2s ease",
           }}
         >
           {isLoading ? (
             <>
               <RefreshIcon size={16} className="animate-spin" />
-              <span>Analyzing Video...</span>
+              <span>Analyzing...</span>
             </>
           ) : (
             <>
               <DownloadIcon size={16} />
-              <span>Analyze &amp; Download</span>
+              <span>Get Download Links</span>
             </>
           )}
         </button>
       </div>
 
-      {/* Sleek Platform Indicator Chips */}
-      <div style={{ marginTop: "12px" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "8px",
-            paddingLeft: "4px",
-            paddingRight: "4px",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              color: "var(--text-muted)",
-            }}
-          >
-            Universal Media Engine
-          </span>
-          <span
-            style={{
-              fontSize: "0.68rem",
-              color: "var(--accent-cyan)",
-              fontWeight: 600,
-              background: "rgba(56, 189, 248, 0.1)",
-              padding: "1px 7px",
-              borderRadius: "10px",
-              border: "1px solid rgba(56, 189, 248, 0.2)",
-            }}
-          >
-            HD 1080p &amp; 4K
-          </span>
+      {/* Platform Detection Label */}
+      {platformLabel && (
+        <div style={{
+          marginTop: "8px",
+          paddingLeft: "4px",
+          fontSize: "0.72rem",
+          color: "var(--text-tertiary)",
+          fontWeight: 500,
+        }}>
+          Detected: <span style={{ color: "var(--accent-light)", fontWeight: 600 }}>{platformLabel}</span>
         </div>
-
-        {/* Elegant Minimalist Platform Pills */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "6px",
-          }}
-        >
-          {platforms.map((p) => {
-            const isMatch = currentPlatform === p.name.toLowerCase().split(" ")[0] || (p.name.includes("Twitter") && currentPlatform === "twitter");
-
-            return (
-              <button
-                key={p.name}
-                type="button"
-                onClick={() => {
-                  if (!url) handlePaste();
-                }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "5px 10px",
-                  borderRadius: "10px",
-                  background: isMatch
-                    ? "rgba(56, 189, 248, 0.16)"
-                    : "rgba(255, 255, 255, 0.04)",
-                  border: isMatch
-                    ? "1px solid rgba(56, 189, 248, 0.45)"
-                    : "1px solid rgba(255, 255, 255, 0.07)",
-                  color: isMatch ? "#FFFFFF" : "var(--text-secondary)",
-                  fontSize: "0.74rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <span
-                  style={{
-                    width: "7px",
-                    height: "7px",
-                    borderRadius: "50%",
-                    background: p.color,
-                    boxShadow: `0 0 8px ${p.color}`,
-                    flexShrink: 0,
-                  }}
-                />
-                <span>{p.name}</span>
-                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 500 }}>
-                  ({p.label.split("&")[0].trim()})
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      )}
     </div>
   );
 };

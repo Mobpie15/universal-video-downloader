@@ -33,29 +33,25 @@ export const UpdatePromptModal = ({ isOpen, onClose, updateInfo }) => {
       setIsDownloading(true);
       setError(null);
       try {
-        const downloadUrl = updateInfo.downloadUrl || updateInfo.windowsInstallerUrl || updateInfo.windowsPortableUrl;
+        const downloadUrl = updateInfo.downloadUrl;
         await window.electronAPI.startInAppUpdate({ downloadUrl });
         setIsDownloading(false);
         setIsRestarting(true);
-
-        // Give UI 1.5 seconds to show success before triggering restart
         setTimeout(async () => {
           try {
             await window.electronAPI.installAndRestart();
           } catch (restartErr) {
-            setError(restartErr.message || "Failed to restart application");
+            setError(restartErr.message || "Failed to restart");
             setIsRestarting(false);
           }
         }, 1500);
       } catch (err) {
         setIsDownloading(false);
-        setError(err.message || "Update download failed. Please try again.");
+        setError(err.message || "Download failed. Try again.");
       }
     } else {
       const url = updateInfo.downloadUrl || updateInfo.releasesPage;
-      if (url) {
-        window.open(url, "_system");
-      }
+      if (url) window.open(url, "_system");
       onClose();
     }
   };
@@ -65,9 +61,9 @@ export const UpdatePromptModal = ({ isOpen, onClose, updateInfo }) => {
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.78)",
-        backdropFilter: "blur(14px)",
-        WebkitBackdropFilter: "blur(14px)",
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -77,168 +73,132 @@ export const UpdatePromptModal = ({ isOpen, onClose, updateInfo }) => {
       onClick={!isDownloading && !isRestarting ? onClose : undefined}
     >
       <div
-        className="glass-panel"
         style={{
           width: "100%",
-          maxWidth: "460px",
-          borderRadius: "22px",
-          border: "1px solid rgba(56, 189, 248, 0.4)",
+          maxWidth: "400px",
+          borderRadius: "var(--radius-xl)",
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
           padding: "24px",
-          boxShadow: "0 20px 48px rgba(0, 0, 0, 0.7), 0 0 28px rgba(56, 189, 248, 0.2)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "16px",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "10px",
-                background: "var(--accent-gradient)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#FFFFFF",
-                boxShadow: "0 4px 14px rgba(56, 189, 248, 0.4)",
-              }}
-            >
+            <div style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "10px",
+              background: "var(--accent-gradient)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#FFF",
+            }}>
               <SparklesIcon size={18} />
             </div>
             <div>
-              <h3 style={{ fontSize: "1.05rem", fontWeight: 800, color: "#FFFFFF", margin: 0 }}>
-                {isRestarting ? "Restarting App..." : isDownloading ? "Downloading Update..." : "Update Available!"}
+              <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                {isRestarting ? "Restarting..." : isDownloading ? "Downloading..." : "Update Available"}
               </h3>
-              <p style={{ fontSize: "0.74rem", color: "var(--accent-cyan)", margin: 0, fontWeight: 700 }}>
-                Version v{updateInfo.latestVersion}
+              <p style={{ fontSize: "0.72rem", color: "var(--accent-light)", margin: 0, fontWeight: 600 }}>
+                v{updateInfo.latestVersion}
               </p>
             </div>
           </div>
           {!isDownloading && !isRestarting && (
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: "6px",
-                borderRadius: "8px",
-                color: "var(--text-muted)",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <CloseIcon size={18} />
+            <button type="button" onClick={onClose} style={{ color: "var(--text-tertiary)", padding: "4px" }}>
+              <CloseIcon size={16} />
             </button>
           )}
         </div>
 
-        {/* Release Notes or Progress Bar */}
+        {/* Content */}
         {isRestarting ? (
-          <div
-            style={{
-              background: "rgba(16, 185, 129, 0.1)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              borderRadius: "14px",
-              padding: "16px",
-              marginBottom: "18px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", color: "var(--accent-green)", fontWeight: 800, fontSize: "0.92rem", marginBottom: "6px" }}>
-              <CheckIcon size={18} />
-              <span>Update Ready!</span>
+          <div style={{
+            background: "var(--green-muted)",
+            borderRadius: "var(--radius-md)",
+            padding: "16px",
+            marginBottom: "16px",
+            textAlign: "center",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", color: "var(--green)", fontWeight: 700, fontSize: "0.88rem", marginBottom: "4px" }}>
+              <CheckIcon size={16} />
+              <span>Update Ready</span>
             </div>
-            <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-              Applying update and restarting fresh app. Please wait a moment...
+            <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--text-secondary)" }}>
+              Applying update and restarting...
             </p>
           </div>
         ) : isDownloading ? (
-          <div
-            style={{
-              background: "rgba(56, 189, 248, 0.06)",
-              border: "1px solid rgba(56, 189, 248, 0.2)",
-              borderRadius: "14px",
-              padding: "16px",
-              marginBottom: "18px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", fontSize: "0.8rem" }}>
-              <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>In-App Package Download</span>
-              <span style={{ color: "var(--accent-cyan)", fontWeight: 800 }}>{progress.percent}%</span>
+          <div style={{
+            background: "var(--bg-elevated)",
+            borderRadius: "var(--radius-md)",
+            padding: "14px",
+            marginBottom: "16px",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "0.76rem" }}>
+              <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>Downloading update</span>
+              <span style={{ color: "var(--accent-light)", fontWeight: 700 }}>{progress.percent}%</span>
             </div>
-            {/* Progress bar */}
-            <div style={{ width: "100%", height: "8px", background: "rgba(255, 255, 255, 0.1)", borderRadius: "4px", overflow: "hidden", marginBottom: "10px" }}>
-              <div
-                style={{
-                  width: `${progress.percent}%`,
-                  height: "100%",
-                  background: "var(--accent-gradient)",
-                  transition: "width 0.2s ease",
-                }}
-              />
+            <div style={{ width: "100%", height: "4px", background: "var(--bg-surface)", borderRadius: "2px", overflow: "hidden", marginBottom: "8px" }}>
+              <div style={{
+                width: `${progress.percent}%`,
+                height: "100%",
+                background: "var(--accent-gradient)",
+                transition: "width 0.2s ease",
+              }} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-muted)" }}>
-              <span>{progress.transferredMB} MB / {progress.totalMB} MB</span>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", color: "var(--text-tertiary)" }}>
+              <span>{progress.transferredMB} / {progress.totalMB} MB</span>
               <span>{progress.speedMBps} MB/s</span>
             </div>
           </div>
         ) : (
-          <div
-            style={{
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.07)",
-              borderRadius: "12px",
-              padding: "14px",
-              marginBottom: "18px",
-              fontSize: "0.82rem",
-              color: "var(--text-secondary)",
-              lineHeight: 1.5,
-            }}
-          >
-            {updateInfo.releaseNotes || "Performance enhancements, in-app auto updater, and bug fixes."}
+          <div style={{
+            background: "var(--bg-elevated)",
+            borderRadius: "var(--radius-md)",
+            padding: "12px",
+            marginBottom: "16px",
+            fontSize: "0.8rem",
+            color: "var(--text-secondary)",
+            lineHeight: 1.5,
+          }}>
+            {updateInfo.releaseNotes || "Performance improvements and bug fixes."}
           </div>
         )}
 
+        {/* Error */}
         {error && (
-          <div
-            style={{
-              background: "rgba(239, 68, 68, 0.12)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
-              borderRadius: "10px",
-              padding: "10px",
-              marginBottom: "14px",
-              fontSize: "0.78rem",
-              color: "var(--accent-red)",
-            }}
-          >
+          <div style={{
+            background: "var(--red-muted)",
+            borderRadius: "var(--radius-sm)",
+            padding: "8px 10px",
+            marginBottom: "12px",
+            fontSize: "0.76rem",
+            color: "var(--red)",
+          }}>
             {error}
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Buttons */}
         {!isRestarting && (
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "8px" }}>
             {!isDownloading && (
               <button
                 type="button"
                 onClick={onClose}
                 style={{
                   flex: 1,
-                  padding: "12px",
-                  borderRadius: "12px",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  padding: "11px",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border)",
                   color: "var(--text-secondary)",
-                  fontWeight: 700,
-                  fontSize: "0.86rem",
-                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: "0.84rem",
                 }}
               >
                 Later
@@ -249,30 +209,30 @@ export const UpdatePromptModal = ({ isOpen, onClose, updateInfo }) => {
               onClick={handleUpdate}
               disabled={isDownloading}
               style={{
-                flex: isDownloading ? 1 : 1.6,
-                padding: "12px",
-                borderRadius: "12px",
+                flex: isDownloading ? 1 : 1.5,
+                padding: "11px",
+                borderRadius: "var(--radius-md)",
                 background: "var(--accent-gradient)",
-                boxShadow: "0 4px 18px rgba(56, 189, 248, 0.4)",
-                color: "#FFFFFF",
-                fontWeight: 800,
-                fontSize: "0.86rem",
+                boxShadow: "var(--accent-glow)",
+                color: "#FFF",
+                fontWeight: 700,
+                fontSize: "0.84rem",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "7px",
+                gap: "6px",
                 cursor: isDownloading ? "not-allowed" : "pointer",
               }}
             >
               {isDownloading ? (
                 <>
-                  <RefreshIcon size={16} className="animate-spin" />
-                  <span>Downloading ({progress.percent}%)</span>
+                  <RefreshIcon size={14} className="animate-spin" />
+                  <span>{progress.percent}%</span>
                 </>
               ) : (
                 <>
-                  <DownloadIcon size={16} />
-                  <span>{isElectron ? "Update App Now" : "Download Update"}</span>
+                  <DownloadIcon size={14} />
+                  <span>{isElectron ? "Update Now" : "Download"}</span>
                 </>
               )}
             </button>

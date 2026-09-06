@@ -38,9 +38,8 @@ export const DownloadQueue = ({
         }
       }
     } catch (e) {
-      console.warn("Desktop openFile failed, falling back to in-app player:", e);
+      console.warn("Desktop openFile failed:", e);
     }
-
     if (item.blobUrl || item.path) {
       setActiveMediaModal(item);
     } else {
@@ -53,143 +52,131 @@ export const DownloadQueue = ({
       if (window.electronAPI && typeof window.electronAPI.openFolder === "function") {
         await window.electronAPI.openFolder(item.path);
       } else {
-        showToast(`Saved to Android Downloads: ${item.fileName}`);
+        showToast(`Saved to Downloads: ${item.fileName}`);
       }
     } catch (e) {
       showToast("Unable to open folder");
     }
   };
 
-  // If on home screen (not full view) and no active items and no completed items, don't take up space
   if (!isFullView && activeItems.length === 0 && completedItems.length === 0) {
     return null;
   }
 
-  // If in Full View ("My Files" tab) and completely empty
+  // Empty state for Library tab
   if (isFullView && items.length === 0) {
     return (
-      <div
-        className="glass-panel"
-        style={{
-          borderRadius: "22px",
-          padding: "54px 24px",
-          textAlign: "center",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-        }}
-      >
-        <div
-          style={{
-            width: "64px",
-            height: "64px",
-            borderRadius: "18px",
-            background: "rgba(56, 189, 248, 0.12)",
-            color: "var(--accent-cyan)",
-            border: "1px solid rgba(56, 189, 248, 0.25)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 18px auto",
-            boxShadow: "0 8px 24px rgba(56, 189, 248, 0.2)",
-          }}
-        >
-          <LibraryIcon size={32} />
+      <div style={{
+        padding: "60px 24px",
+        textAlign: "center",
+      }}>
+        <div style={{
+          width: "56px",
+          height: "56px",
+          borderRadius: "16px",
+          background: "var(--accent-muted)",
+          color: "var(--accent-light)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 16px auto",
+        }}>
+          <LibraryIcon size={26} />
         </div>
-        <h3 style={{ fontSize: "1.15rem", fontWeight: 800, color: "#FFFFFF", marginBottom: "8px", letterSpacing: "-0.01em" }}>
-          No Downloads Yet
+        <h3 style={{
+          fontSize: "1.05rem",
+          fontWeight: 700,
+          color: "var(--text-primary)",
+          marginBottom: "6px",
+        }}>
+          No downloads yet
         </h3>
-        <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", maxWidth: "300px", margin: "0 auto", lineHeight: 1.5 }}>
-          Paste a video or reel link in the Downloader tab to start saving files directly to your device.
+        <p style={{
+          fontSize: "0.82rem",
+          color: "var(--text-secondary)",
+          maxWidth: "280px",
+          margin: "0 auto",
+          lineHeight: 1.5,
+        }}>
+          Paste a video link to start downloading files to your device.
         </p>
       </div>
     );
   }
 
   return (
-    <div style={{ width: "100%", marginBottom: "24px" }}>
-      {/* In-App Media Player Modal */}
+    <div style={{ width: "100%" }}>
+      {/* Media Player Modal */}
       {activeMediaModal && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0, 0, 0, 0.88)",
+            background: "rgba(0, 0, 0, 0.9)",
             backdropFilter: "blur(12px)",
             zIndex: 9999,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "20px",
+            padding: "16px",
           }}
           onClick={() => setActiveMediaModal(null)}
         >
           <div
             style={{
               width: "100%",
-              maxWidth: "680px",
-              background: "#0E1526",
-              border: "1px solid rgba(56, 189, 248, 0.35)",
-              borderRadius: "20px",
+              maxWidth: "640px",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-lg)",
               overflow: "hidden",
-              boxShadow: "0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "16px 20px",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "0.92rem",
-                  fontWeight: 700,
-                  color: "#FFFFFF",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxWidth: "80%",
-                }}
-              >
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 16px",
+              borderBottom: "1px solid var(--border)",
+            }}>
+              <span style={{
+                fontSize: "0.88rem",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "80%",
+              }}>
                 {activeMediaModal.title || activeMediaModal.fileName}
               </span>
               <button
                 type="button"
                 onClick={() => setActiveMediaModal(null)}
-                style={{
-                  color: "var(--text-muted)",
-                  padding: "6px",
-                  borderRadius: "8px",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  cursor: "pointer",
-                }}
+                style={{ color: "var(--text-tertiary)", padding: "4px", borderRadius: "6px" }}
               >
                 <CloseIcon size={18} />
               </button>
             </div>
 
-            {/* Media Player */}
-            <div style={{ padding: "16px", background: "#050811" }}>
+            {/* Player */}
+            <div style={{ background: "#000" }}>
               {activeMediaModal.fileName?.endsWith(".mp3") ? (
-                <div style={{ padding: "30px 20px", textAlign: "center" }}>
-                  <div
-                    style={{
-                      width: "60px",
-                      height: "60px",
-                      borderRadius: "16px",
-                      background: "rgba(139, 92, 246, 0.16)",
-                      color: "var(--accent-purple)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 16px auto",
-                    }}
-                  >
-                    <AudioIcon size={30} />
+                <div style={{ padding: "32px 20px", textAlign: "center" }}>
+                  <div style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "14px",
+                    background: "var(--purple-muted)",
+                    color: "var(--purple)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 14px auto",
+                  }}>
+                    <AudioIcon size={24} />
                   </div>
                   <audio
                     src={activeMediaModal.blobUrl || activeMediaModal.path}
@@ -207,221 +194,160 @@ export const DownloadQueue = ({
                   style={{
                     width: "100%",
                     maxHeight: "65vh",
-                    borderRadius: "12px",
                     outline: "none",
-                    backgroundColor: "#000000",
+                    backgroundColor: "#000",
                   }}
                 />
               )}
             </div>
 
-            {/* Modal Footer Actions */}
-            <div
-              style={{
-                padding: "12px 20px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: "10px",
-                background: "rgba(255, 255, 255, 0.02)",
-              }}
-            >
+            {/* Footer */}
+            <div style={{
+              padding: "10px 16px",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}>
               <button
                 type="button"
                 onClick={() => handleLocateFile(activeMediaModal)}
                 style={{
-                  padding: "8px 14px",
-                  borderRadius: "10px",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  color: "#FFFFFF",
-                  fontSize: "0.8rem",
+                  padding: "7px 14px",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-secondary)",
+                  fontSize: "0.78rem",
                   fontWeight: 600,
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
-                  cursor: "pointer",
                 }}
               >
-                <FolderIcon size={14} />
-                <span>Locate File</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleShare(activeMediaModal)}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "10px",
-                  background: "var(--accent-gradient)",
-                  color: "#FFFFFF",
-                  fontSize: "0.8rem",
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                <ShareIcon size={14} />
-                <span>Share</span>
+                <FolderIcon size={13} />
+                <span>Locate</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Section Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "14px",
-          paddingLeft: "4px",
-          paddingRight: "4px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            style={{
-              width: "26px",
-              height: "26px",
-              borderRadius: "8px",
-              background: "rgba(56, 189, 248, 0.15)",
-              color: "var(--accent-cyan)",
-              border: "1px solid rgba(56, 189, 248, 0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <DownloadIcon size={14} />
-          </div>
-          <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "#FFFFFF", letterSpacing: "-0.01em" }}>
-            {isFullView ? "My Downloaded Files" : "Active & Recent Downloads"}
-          </span>
-          <span
-            style={{
-              fontSize: "0.7rem",
-              fontWeight: 800,
-              padding: "2px 8px",
-              borderRadius: "10px",
-              background: "rgba(56, 189, 248, 0.15)",
-              color: "var(--accent-cyan)",
-              border: "1px solid rgba(56, 189, 248, 0.25)",
-            }}
-          >
+      {/* Section Label */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: "12px",
+        paddingLeft: "2px",
+      }}>
+        <span style={{
+          fontSize: "0.78rem",
+          fontWeight: 600,
+          color: "var(--text-secondary)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}>
+          {isFullView ? "Library" : "Downloads"}
+          <span style={{
+            marginLeft: "6px",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            color: "var(--text-tertiary)",
+            background: "var(--bg-elevated)",
+            padding: "1px 7px",
+            borderRadius: "10px",
+          }}>
             {items.length}
           </span>
-        </div>
+        </span>
 
         {completedItems.length > 0 && (
           <button
             type="button"
             onClick={onClearCompleted}
             style={{
-              fontSize: "0.75rem",
-              color: "var(--text-muted)",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              padding: "5px 10px",
-              borderRadius: "8px",
-              background: "rgba(255, 255, 255, 0.04)",
-              border: "1px solid rgba(255, 255, 255, 0.07)",
-              transition: "all 0.2s ease",
-              cursor: "pointer",
+              fontSize: "0.72rem",
+              color: "var(--text-tertiary)",
+              padding: "4px 8px",
+              borderRadius: "6px",
             }}
           >
-            <TrashIcon size={13} />
-            <span>Clear History</span>
+            Clear
           </button>
         )}
       </div>
 
-      {/* Active Downloads Group */}
+      {/* Active Downloads */}
       {activeItems.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
           {activeItems.map((item) => (
             <div
               key={item.id}
-              className="glass-panel"
               style={{
-                border: "1px solid rgba(56, 189, 248, 0.35)",
-                borderRadius: "16px",
-                padding: "14px 16px",
-                boxShadow: "0 8px 24px rgba(2, 132, 199, 0.18)",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-active)",
+                borderRadius: "var(--radius-md)",
+                padding: "12px 14px",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                <span
-                  style={{
-                    fontSize: "0.88rem",
-                    fontWeight: 700,
-                    color: "#FFFFFF",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    maxWidth: "75%",
-                  }}
-                >
+                <span style={{
+                  fontSize: "0.84rem",
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: "75%",
+                }}>
                   {item.title}
                 </span>
                 <button
                   type="button"
                   onClick={() => onCancelDownload(item.id)}
-                  style={{ color: "var(--text-muted)", padding: "4px", borderRadius: "6px", cursor: "pointer" }}
-                  title="Cancel download"
+                  style={{ color: "var(--text-tertiary)", padding: "2px", borderRadius: "4px" }}
                 >
-                  <CloseIcon size={16} />
+                  <CloseIcon size={14} />
                 </button>
               </div>
 
-              {/* Glowing Progress Bar */}
-              <div
-                style={{
-                  width: "100%",
-                  height: "7px",
-                  background: "rgba(255, 255, 255, 0.06)",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  marginBottom: "10px",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${Math.max(3, item.percent)}%`,
-                    height: "100%",
-                    background: "linear-gradient(90deg, #2563EB 0%, #0284C7 50%, #38BDF8 100%)",
-                    borderRadius: "8px",
-                    boxShadow: "0 0 12px rgba(56, 189, 248, 0.6)",
-                    transition: "width 0.2s ease",
-                  }}
-                />
+              {/* Progress Bar */}
+              <div style={{
+                width: "100%",
+                height: "4px",
+                background: "var(--bg-elevated)",
+                borderRadius: "4px",
+                overflow: "hidden",
+                marginBottom: "8px",
+              }}>
+                <div style={{
+                  width: `${Math.max(2, item.percent)}%`,
+                  height: "100%",
+                  background: "var(--accent-gradient)",
+                  borderRadius: "4px",
+                  transition: "width 0.2s ease",
+                }} />
               </div>
 
-              {/* Meta stats */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  fontSize: "0.74rem",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                <span style={{ fontWeight: 600 }}>{item.formatLabel || "HD Video"}</span>
-                <span>{item.speedMBps ? `${item.speedMBps} MB/s` : "Downloading..."}</span>
-                <span style={{ fontWeight: 800, color: "var(--accent-cyan)" }}>{item.percent}%</span>
+              {/* Stats */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                fontSize: "0.72rem",
+                color: "var(--text-tertiary)",
+              }}>
+                <span style={{ fontWeight: 500 }}>{item.formatLabel || "HD"}</span>
+                <span>{item.speedMBps ? `${item.speedMBps} MB/s` : "Starting..."}</span>
+                <span style={{ fontWeight: 700, color: "var(--accent-light)" }}>{item.percent}%</span>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Completed Downloads Group */}
+      {/* Completed Downloads */}
       {completedItems.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           {completedItems.slice(0, isFullView ? 50 : 3).map((item) => {
             const isAudio = item.fileName?.endsWith(".mp3");
             const isSuccess = item.status === "completed";
@@ -429,135 +355,116 @@ export const DownloadQueue = ({
             return (
               <div
                 key={item.id}
-                className="glass-panel"
                 style={{
-                  borderRadius: "16px",
-                  padding: "14px 16px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  gap: "12px",
-                  border: isSuccess ? "1px solid rgba(255, 255, 255, 0.07)" : "1px solid rgba(239, 68, 68, 0.3)",
+                  padding: "10px 12px",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--bg-secondary)",
+                  border: `1px solid ${isSuccess ? "var(--border)" : "rgba(248, 113, 113, 0.2)"}`,
+                  gap: "10px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "12px",
-                      background: isSuccess
-                        ? (isAudio ? "rgba(139, 92, 246, 0.16)" : "rgba(16, 185, 129, 0.16)")
-                        : "rgba(239, 68, 68, 0.16)",
-                      border: isSuccess
-                        ? (isAudio ? "1px solid rgba(139, 92, 246, 0.3)" : "1px solid rgba(16, 185, 129, 0.3)")
-                        : "1px solid rgba(239, 68, 68, 0.3)",
-                      color: isSuccess
-                        ? (isAudio ? "var(--accent-purple)" : "var(--accent-green)")
-                        : "var(--accent-red)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {isSuccess ? (isAudio ? <AudioIcon size={18} /> : <CheckIcon size={18} />) : <CloseIcon size={18} />}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                  {/* Status Icon */}
+                  <div style={{
+                    width: "34px",
+                    height: "34px",
+                    borderRadius: "10px",
+                    background: isSuccess
+                      ? (isAudio ? "var(--purple-muted)" : "var(--green-muted)")
+                      : "var(--red-muted)",
+                    color: isSuccess
+                      ? (isAudio ? "var(--purple)" : "var(--green)")
+                      : "var(--red)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    {isSuccess ? (isAudio ? <AudioIcon size={16} /> : <CheckIcon size={16} />) : <CloseIcon size={16} />}
                   </div>
 
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: "0.88rem",
-                        color: "#FFFFFF",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
+                    <div style={{
+                      fontWeight: 600,
+                      fontSize: "0.82rem",
+                      color: "var(--text-primary)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}>
                       {item.title}
                     </div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "1px" }}>
                       {isSuccess ? (
-                        <span style={{ color: "var(--accent-green)", fontWeight: 600 }}>Ready to Play</span>
+                        <span style={{ color: "var(--green)", fontWeight: 500 }}>Ready</span>
                       ) : (
-                        <span style={{ color: "var(--accent-red)", fontWeight: 600 }}>Download Failed</span>
+                        <span style={{ color: "var(--red)", fontWeight: 500 }}>Failed</span>
                       )}
-                      {item.formatLabel ? ` • ${item.formatLabel}` : ""}
+                      {item.formatLabel ? ` · ${item.formatLabel}` : ""}
                     </div>
                   </div>
                 </div>
 
-                {/* File action buttons */}
+                {/* Actions */}
                 {isSuccess && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                    {/* Primary Play Button */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
                     <button
                       type="button"
                       onClick={() => handlePlayMedia(item)}
                       style={{
-                        padding: "8px 14px",
-                        borderRadius: "10px",
+                        padding: "6px 12px",
+                        borderRadius: "var(--radius-sm)",
                         background: "var(--accent-gradient)",
-                        color: "#FFFFFF",
+                        color: "#FFF",
                         display: "flex",
                         alignItems: "center",
-                        gap: "6px",
-                        fontSize: "0.76rem",
-                        fontWeight: 700,
-                        transition: "all 0.2s ease",
-                        cursor: "pointer",
-                        border: "none",
-                        boxShadow: "0 2px 10px rgba(56, 189, 248, 0.3)",
+                        gap: "4px",
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        boxShadow: "var(--accent-glow)",
                       }}
-                      title="Play / Open video"
                     >
-                      <PlayIcon size={13} />
+                      <PlayIcon size={12} />
                       <span>Play</span>
                     </button>
 
-                    {/* File Explorer / Locate Button */}
                     <button
                       type="button"
                       onClick={() => handleLocateFile(item)}
                       style={{
-                        padding: "8px 11px",
-                        borderRadius: "10px",
-                        background: "rgba(56, 189, 248, 0.12)",
-                        border: "1px solid rgba(56, 189, 248, 0.25)",
-                        color: "var(--accent-cyan)",
+                        padding: "6px 8px",
+                        borderRadius: "var(--radius-sm)",
+                        background: "var(--bg-elevated)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-secondary)",
                         display: "flex",
                         alignItems: "center",
-                        gap: "5px",
-                        fontSize: "0.74rem",
-                        fontWeight: 700,
-                        transition: "all 0.2s ease",
-                        cursor: "pointer",
+                        fontSize: "0.72rem",
                       }}
-                      title={isElectron ? "Locate in File Explorer" : "File Explorer / Downloads"}
+                      title="Locate file"
                     >
-                      <FolderIcon size={14} />
-                      <span>{isElectron ? "Explorer" : "Locate"}</span>
+                      <FolderIcon size={13} />
                     </button>
 
-                    {/* Delete Button */}
                     {onDeleteItem && (
                       <button
                         type="button"
                         onClick={() => onDeleteItem(item.id)}
                         style={{
-                          padding: "8px",
-                          borderRadius: "10px",
-                          background: "rgba(255, 255, 255, 0.04)",
-                          border: "1px solid rgba(255, 255, 255, 0.07)",
-                          color: "var(--text-muted)",
+                          padding: "6px 8px",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--bg-elevated)",
+                          border: "1px solid var(--border)",
+                          color: "var(--text-tertiary)",
                           display: "flex",
                           alignItems: "center",
-                          cursor: "pointer",
                         }}
-                        title="Delete from list"
+                        title="Remove"
                       >
-                        <TrashIcon size={13} />
+                        <TrashIcon size={12} />
                       </button>
                     )}
                   </div>

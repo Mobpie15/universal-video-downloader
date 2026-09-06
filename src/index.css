@@ -1,29 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 :root {
-  --bg-primary: #06090F;
-  --bg-secondary: #0D131F;
-  --bg-card: rgba(15, 23, 42, 0.72);
-  --bg-card-solid: #0F172A;
-  --bg-input: rgba(18, 28, 48, 0.85);
-  --bg-hover: rgba(30, 48, 80, 0.6);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-highlight: rgba(56, 189, 248, 0.35);
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --accent-cyan: #38BDF8;
-  --accent-blue: #2563EB;
-  --accent-gradient: linear-gradient(135deg, #2563EB 0%, #0284C7 50%, #38BDF8 100%);
-  --accent-gradient-hover: linear-gradient(135deg, #1D4ED8 0%, #0369A1 50%, #0284C7 100%);
-  --glow-cyan: 0 0 24px rgba(56, 189, 248, 0.28);
-  --glow-blue: 0 0 28px rgba(37, 99, 235, 0.35);
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 28px;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Premium Dark Palette — inspired by Linear, Notion, Arc */
+  --bg-primary: #0A0A0C;
+  --bg-secondary: #141416;
+  --bg-elevated: #1A1A1E;
+  --bg-surface: #1E1E22;
+  --bg-input: #1A1A1E;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+
+  --border: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-active: rgba(99, 130, 255, 0.35);
+
+  --text-primary: #ECECEF;
+  --text-secondary: #8E8E93;
+  --text-tertiary: #636366;
+
+  --accent: #6366F1;
+  --accent-light: #818CF8;
+  --accent-muted: rgba(99, 102, 241, 0.15);
+  --accent-gradient: linear-gradient(135deg, #6366F1 0%, #818CF8 100%);
+  --accent-glow: 0 4px 24px rgba(99, 102, 241, 0.25);
+
+  --green: #34D399;
+  --green-muted: rgba(52, 211, 153, 0.12);
+  --red: #F87171;
+  --red-muted: rgba(248, 113, 113, 0.12);
+  --purple: #A78BFA;
+  --purple-muted: rgba(167, 139, 250, 0.12);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Legacy aliases for components not yet updated */
+  --bg-card: var(--bg-secondary);
+  --bg-card-solid: var(--bg-elevated);
+  --accent-cyan: var(--accent-light);
+  --accent-blue: var(--accent);
+  --accent-green: var(--green);
+  --accent-red: var(--red);
+  --accent-purple: var(--purple);
+  --text-muted: var(--text-tertiary);
+  --glow-cyan: var(--accent-glow);
+  --glow-blue: var(--accent-glow);
+  --border-highlight: var(--border-active);
 }
 
 * {
@@ -40,11 +69,6 @@ input, textarea {
 
 body {
   background-color: var(--bg-primary);
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(37, 99, 235, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.10) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.5) 0%, transparent 100%);
-  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
@@ -53,79 +77,64 @@ body {
   overflow-x: hidden;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); }
 
 /* Animations */
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
-    border-color: rgba(56, 189, 248, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 35px rgba(56, 189, 248, 0.45);
-    border-color: rgba(56, 189, 248, 0.7);
-  }
-}
-
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-spin {
-  animation: spin 0.9s linear infinite;
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-pulse {
-  animation: pulseGlow 2.5s ease-in-out infinite;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-/* Glassmorphic Utilities */
+.animate-spin { animation: spin 0.8s linear infinite; }
+.animate-pulse { animation: pulse 2s ease-in-out infinite; }
+.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+.animate-slideUp { animation: slideUp 0.4s ease-out; }
+
+/* Surface styles — replaces glass-panel */
 .glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-lg);
 }
 
 .glass-panel-hover {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
 }
 
 .glass-panel-hover:hover {
-  border-color: var(--border-highlight);
-  transform: translateY(-2px);
-  box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.15);
+  background: var(--bg-elevated);
+  border-color: var(--border-active);
 }
 
+/* Buttons */
 button {
   font-family: inherit;
   border: none;
   background: none;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.15s ease;
 }
 
 button:active {
@@ -136,25 +145,14 @@ input {
   font-family: inherit;
 }
 
-/* Responsive Container Adjustments */
+/* Responsive */
 @media (min-width: 768px) {
-  body {
-    padding-bottom: 24px; /* No bottom nav needed on large screens */
-  }
-  .mobile-only {
-    display: none !important;
-  }
-  .desktop-only {
-    display: flex !important;
-  }
+  body { padding-bottom: 24px; }
+  .mobile-only { display: none !important; }
+  .desktop-only { display: flex !important; }
 }
 
 @media (max-width: 767px) {
-  body {
-    padding-bottom: 80px; /* Space for bottom nav */
-  }
-  .desktop-only {
-    display: none !important;
-  }
+  body { padding-bottom: 72px; }
+  .desktop-only { display: none !important; }
 }
-

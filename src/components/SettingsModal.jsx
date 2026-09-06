@@ -60,7 +60,7 @@ export const SettingsModal = ({ isOpen, onClose }) => {
       setIsDownloading(true);
       setUpdateError(null);
       try {
-        const downloadUrl = updateInfo.downloadUrl || updateInfo.windowsInstallerUrl || updateInfo.windowsPortableUrl;
+        const downloadUrl = updateInfo.downloadUrl;
         await window.electronAPI.startInAppUpdate({ downloadUrl });
         setIsDownloading(false);
         setIsRestarting(true);
