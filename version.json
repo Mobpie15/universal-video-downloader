@@ -1,12 +1,12 @@
 {
-  "version": "1.2.2",
-  "versionCode": 6,
-  "releaseDate": "2026-09-05",
-  "title": "Pie Video Downloader v1.2.2",
-  "releaseNotes": "Clean download UX flow - download button now switches to full progress view, action buttons (Download Another Video, More Qualities) after completion, YouTube rate-limiting auto-retry, fixed modal share button crash.",
-  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.2/Pie.Video.Downloader.Setup.1.2.2.exe",
-  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.2/Pie.Video.Downloader.Setup.1.2.2.exe",
-  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.2/Pie.Video.Downloader.1.2.2.exe",
-  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.2/Pie-Video-Downloader.apk",
-  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.2.2"
+  "version": "1.2.3",
+  "versionCode": 7,
+  "releaseDate": "2026-09-07",
+  "title": "Pie Video Downloader v1.2.3 - Creative Studio Edition",
+  "releaseNotes": "Stunning redesigned download screen with live video artwork, animated progress telemetry, intelligent stream connecting states, YouTube 1440p/4K multi-layer fallback to prevent stalling, and full auto-updater overwrite fix.",
+  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.3/Pie.Video.Downloader.Setup.1.2.3.exe",
+  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.3/Pie.Video.Downloader.Setup.1.2.3.exe",
+  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.3/Pie.Video.Downloader.1.2.3.exe",
+  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.3/Pie-Video-Downloader.apk",
+  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.2.3"
 }

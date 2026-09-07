@@ -110,9 +110,14 @@ export default function App() {
       title: media.title,
       fileName,
       formatLabel: fmt.label || fmt.resolution,
+      thumbnail: media.thumbnail || "",
+      author: media.author || "",
+      duration: media.duration || 0,
+      resolution: fmt.resolution,
+      ext: fmt.ext,
       status: "downloading",
       percent: 0,
-      speedMBps: "0.0",
+      speedMBps: "preparing",
       etaSeconds: 0,
       path: "",
     };
@@ -254,52 +259,33 @@ export default function App() {
 
                 {/* Error Message Box */}
                 {error && (
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      background: "rgba(239, 68, 68, 0.12)",
-                      border: "1px solid rgba(239, 68, 68, 0.35)",
-                      borderRadius: "14px",
-                      color: "#FCA5A5",
-                      fontSize: "0.84rem",
-                      marginBottom: "20px",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: "10px",
-                    }}
-                  >
-                    <span style={{ flex: 1, minWidth: "180px" }}>{error}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReportModalData({
-                            errorMessage: error,
-                            targetUrl: url.trim(),
-                            context: "Media Extraction Failure",
-                          })
-                        }
+                  <div style={{
+                    padding: "12px 14px",
+                    background: "var(--red-muted)",
+                    border: "1px solid rgba(251, 113, 133, 0.2)",
+                    borderRadius: "var(--radius-md)",
+                    color: "var(--red)",
+                    fontSize: "0.82rem",
+                    marginBottom: "16px",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "10px",
+                  }}>
+                    <span style={{ flex: 1, minWidth: "160px", color: "var(--text-primary)", fontWeight: 500 }}>{error}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <button type="button"
+                        onClick={() => setReportModalData({ errorMessage: error, targetUrl: url.trim(), context: "Extraction" })}
                         style={{
-                          padding: "5px 10px",
-                          borderRadius: "8px",
-                          background: "rgba(239, 68, 68, 0.2)",
-                          border: "1px solid rgba(239, 68, 68, 0.4)",
-                          color: "#FFFFFF",
-                          fontSize: "0.74rem",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
+                          padding: "5px 12px", borderRadius: "8px",
+                          background: "rgba(251, 113, 133, 0.15)", border: "1px solid rgba(251, 113, 133, 0.25)",
+                          color: "#FFF", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
                         }}
                       >
-                        Facing issue? Report to Developer
+                        Report Bug
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setError(null)}
-                        style={{ color: "var(--accent-red)", padding: "2px" }}
-                      >
+                      <button type="button" onClick={() => setError(null)} style={{ color: "var(--red)", padding: "2px" }}>
                         <CloseIcon size={16} />
                       </button>
                     </div>
@@ -328,59 +314,29 @@ export default function App() {
 
                 {/* Action buttons after download completes */}
                 {lastDownloadCompleted && !hasActiveDownload && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      marginTop: "16px",
-                    }}
-                  >
-                    {/* Download Another Video */}
-                    <button
-                      type="button"
-                      onClick={handleDownloadAnother}
+                  <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
+                    <button type="button" onClick={handleDownloadAnother}
+                      className="animate-glow"
                       style={{
-                        flex: 1,
-                        padding: "12px 16px",
-                        borderRadius: "12px",
-                        background: "var(--accent-gradient)",
-                        color: "#FFFFFF",
-                        fontWeight: 700,
-                        fontSize: "0.85rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        border: "none",
-                        boxShadow: "0 4px 16px rgba(37, 99, 235, 0.35)",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
+                        flex: 1, padding: "13px 16px", borderRadius: "var(--radius-lg)",
+                        background: "var(--accent-gradient)", color: "#FFF",
+                        fontWeight: 700, fontSize: "0.88rem",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                        border: "none", cursor: "pointer",
                       }}
                     >
                       <DownloadIcon size={16} />
-                      <span>Download Another Video</span>
+                      <span>Download Another</span>
                     </button>
-
-                    {/* Download More Qualities */}
                     {media && (
-                      <button
-                        type="button"
-                        onClick={handleDownloadMoreQualities}
+                      <button type="button" onClick={handleDownloadMoreQualities}
                         style={{
-                          flex: 1,
-                          padding: "12px 16px",
-                          borderRadius: "12px",
-                          background: "rgba(56, 189, 248, 0.12)",
-                          border: "1px solid rgba(56, 189, 248, 0.35)",
-                          color: "var(--accent-cyan)",
-                          fontWeight: 700,
-                          fontSize: "0.85rem",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "8px",
+                          flex: 1, padding: "13px 16px", borderRadius: "var(--radius-lg)",
+                          background: "var(--accent-muted)",
+                          border: "1px solid rgba(139, 92, 246, 0.25)",
+                          color: "var(--accent-light)", fontWeight: 700, fontSize: "0.88rem",
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
                           cursor: "pointer",
-                          transition: "all 0.2s ease",
                         }}
                       >
                         <RefreshIcon size={16} />

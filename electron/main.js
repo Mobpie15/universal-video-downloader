@@ -334,9 +334,10 @@ ipcMain.handle("download-media", async (event, options) => {
       "--newline",
       "--js-runtimes",
       "node",
-      "--extractor-retries", "5",
-      "--retry-sleep", "extractor:5",
+      "--extractor-retries", "3",
+      "--retry-sleep", "extractor:3",
       "--file-access-retries", "3",
+      "--socket-timeout", "30",
     ];
 
     if (ffmpegDir && fs.existsSync(path.join(ffmpegDir, "ffmpeg.exe"))) {
@@ -347,7 +348,7 @@ ipcMain.handle("download-media", async (event, options) => {
       args.push("-x", "--audio-format", "mp3");
     } else {
       if (formatId && formatId !== "direct" && !formatId.startsWith("pie-")) {
-        args.push("-f", `${formatId}+bestaudio/best`);
+        args.push("-f", `${formatId}+bestaudio/${formatId}/bestvideo+bestaudio/best`);
       } else {
         args.push("-f", "bestvideo+bestaudio/best");
       }
@@ -359,17 +360,26 @@ ipcMain.handle("download-media", async (event, options) => {
     args.push("-o", outputTemplate);
     args.push(url.trim());
 
+    // Send immediate "preparing" progress so UI isn't stuck at 0%
+    event.sender.send(`download-progress-${id}`, {
+      percent: 1,
+      speedMBps: "preparing",
+      etaSeconds: "...",
+    });
+
     const proc = spawn(binPath, args);
     activeProcesses.set(id, proc);
 
     let finalPath = "";
     let errorOutput = "";
+    let hasReceivedProgress = false;
 
     proc.stdout.on("data", (chunk) => {
       const text = chunk.toString();
       const lines = text.split(/[\r\n]+/);
       for (const line of lines) {
         if (line.startsWith("PROGRESS:")) {
+          hasReceivedProgress = true;
           const parts = line.replace("PROGRESS:", "").split("|");
           const percentStr = parts[0] ? parts[0].replace("%", "").trim() : "0";
           const speedStr = parts[1] ? parts[1].trim() : "0.0";
@@ -384,7 +394,7 @@ ipcMain.handle("download-media", async (event, options) => {
           }
 
           event.sender.send(`download-progress-${id}`, {
-            percent: Math.min(100, Math.round(percent)),
+            percent: Math.min(100, Math.max(2, Math.round(percent))),
             speedMBps,
             etaSeconds: etaStr,
           });
@@ -402,7 +412,21 @@ ipcMain.handle("download-media", async (event, options) => {
     });
 
     proc.stderr.on("data", (chunk) => {
-      errorOutput += chunk.toString();
+      const text = chunk.toString();
+      errorOutput += text;
+      // If we haven't received real progress yet, send live progress status
+      if (!hasReceivedProgress) {
+        let status = "connecting";
+        if (text.includes("Solving JS challenges")) status = "bypassing";
+        else if (text.includes("Downloading webpage") || text.includes("Downloading API")) status = "connecting";
+        else if (text.includes("Downloading") || text.includes("Extracting")) status = "buffering";
+
+        event.sender.send(`download-progress-${id}`, {
+          percent: 1,
+          speedMBps: status,
+          etaSeconds: "...",
+        });
+      }
     });
 
     proc.on("error", (err) => {

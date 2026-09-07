@@ -1,13 +1,8 @@
 import React, { useState } from "react";
-import {
-  VideoIcon,
-  AudioIcon,
-  DownloadIcon,
-} from "./icons/Icons.jsx";
+import { VideoIcon, AudioIcon, DownloadIcon } from "./icons/Icons.jsx";
 
 export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) => {
   const [filterType, setFilterType] = useState("all");
-
   if (!media) return null;
 
   const formatDuration = (sec) => {
@@ -35,22 +30,33 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
   const hasVideo = formats.some(f => f.type !== "audio" && f.hasVideo);
   const hasAudio = formats.some(f => f.type === "audio" || !f.hasVideo);
 
+  // Color based on resolution
+  const getQualityColor = (label) => {
+    if (!label) return "var(--accent-light)";
+    const l = label.toLowerCase();
+    if (l.includes("2160") || l.includes("4k")) return "#FB923C";
+    if (l.includes("1440") || l.includes("1080")) return "#F472B6";
+    if (l.includes("720")) return "#8B5CF6";
+    if (l.includes("480") || l.includes("360")) return "#60A5FA";
+    return "var(--accent-light)";
+  };
+
   return (
     <div className="animate-slideUp" style={{ marginBottom: "20px" }}>
-      {/* Video Info Header */}
+      {/* Video Card */}
       <div style={{
         background: "var(--bg-secondary)",
         border: "1px solid var(--border)",
-        borderRadius: "var(--radius-lg)",
+        borderRadius: "var(--radius-xl)",
         overflow: "hidden",
-        marginBottom: "12px",
+        marginBottom: "14px",
       }}>
-        {/* Thumbnail — full width 16:9 */}
+        {/* Thumbnail */}
         {media.thumbnail && (
           <div style={{
             position: "relative",
             width: "100%",
-            paddingTop: "56.25%", /* 16:9 */
+            paddingTop: "56.25%",
             background: "#000",
             overflow: "hidden",
           }}>
@@ -59,35 +65,57 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
               alt={media.title}
               style={{
                 position: "absolute",
-                top: 0,
-                left: 0,
+                top: 0, left: 0,
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
               }}
               onError={(e) => { e.target.style.display = "none"; }}
             />
+            {/* Gradient overlay at bottom */}
+            <div style={{
+              position: "absolute",
+              bottom: 0, left: 0, right: 0,
+              height: "50%",
+              background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
+            }} />
+            {/* Duration badge */}
             {media.duration > 0 && (
               <span style={{
                 position: "absolute",
-                bottom: "8px",
-                right: "8px",
-                background: "rgba(0, 0, 0, 0.75)",
+                bottom: "10px",
+                right: "10px",
+                background: "rgba(0, 0, 0, 0.6)",
+                backdropFilter: "blur(8px)",
                 color: "#FFF",
                 fontSize: "0.72rem",
                 fontWeight: 700,
-                padding: "2px 8px",
-                borderRadius: "6px",
+                padding: "3px 8px",
+                borderRadius: "8px",
                 fontFamily: "var(--font-mono)",
-                letterSpacing: "0.02em",
               }}>
                 {formatDuration(media.duration)}
               </span>
             )}
+            {/* Format count badge */}
+            <span style={{
+              position: "absolute",
+              bottom: "10px",
+              left: "10px",
+              background: "var(--accent-gradient)",
+              color: "#FFF",
+              fontSize: "0.68rem",
+              fontWeight: 700,
+              padding: "3px 10px",
+              borderRadius: "8px",
+              boxShadow: "var(--accent-glow)",
+            }}>
+              {formats.length} formats
+            </span>
           </div>
         )}
 
-        {/* Title & Author */}
+        {/* Title */}
         <div style={{ padding: "14px 16px" }}>
           <h3 style={{
             fontSize: "0.92rem",
@@ -103,47 +131,38 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
             {media.title}
           </h3>
           {media.author && (
-            <p style={{
-              fontSize: "0.78rem",
-              color: "var(--text-secondary)",
-              margin: 0,
-              fontWeight: 500,
-            }}>
+            <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", margin: 0, fontWeight: 500 }}>
               {media.author}
             </p>
           )}
         </div>
       </div>
 
-      {/* Format Filter — only show if both types exist */}
+      {/* Filter pills */}
       {hasVideo && hasAudio && (
-        <div style={{
-          display: "flex",
-          gap: "6px",
-          marginBottom: "10px",
-        }}>
+        <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
           {[
-            { id: "all", label: "All" },
-            { id: "video", label: "Video" },
-            { id: "audio", label: "Audio" },
+            { id: "all", label: "All", icon: "📦" },
+            { id: "video", label: "Video", icon: "🎬" },
+            { id: "audio", label: "Audio", icon: "🎵" },
           ].map((t) => {
             const isActive = filterType === t.id;
             return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setFilterType(t.id)}
+              <button key={t.id} type="button" onClick={() => setFilterType(t.id)}
                 style={{
                   padding: "6px 14px",
                   fontSize: "0.76rem",
                   fontWeight: isActive ? 700 : 500,
-                  borderRadius: "var(--radius-sm)",
-                  background: isActive ? "var(--accent-muted)" : "var(--bg-elevated)",
-                  color: isActive ? "var(--accent-light)" : "var(--text-secondary)",
-                  border: isActive ? "1px solid rgba(99, 102, 241, 0.25)" : "1px solid var(--border)",
-                  transition: "all 0.15s ease",
+                  borderRadius: "20px",
+                  background: isActive ? "var(--accent-muted)" : "var(--bg-secondary)",
+                  color: isActive ? "var(--accent-light)" : "var(--text-tertiary)",
+                  border: `1px solid ${isActive ? "rgba(139, 92, 246, 0.3)" : "var(--border)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
                 }}
               >
+                <span style={{ fontSize: "0.72rem" }}>{t.icon}</span>
                 {t.label}
               </button>
             );
@@ -152,11 +171,12 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
       )}
 
       {/* Format List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {filteredFormats.length > 0 ? (
-          filteredFormats.map((fmt) => {
+          filteredFormats.map((fmt, i) => {
             const isDownloading = downloadingFormatId === fmt.formatId;
             const isAudioOnly = fmt.type === "audio" || !fmt.hasVideo;
+            const qualityColor = isAudioOnly ? "var(--purple)" : getQualityColor(fmt.label || fmt.resolution);
 
             return (
               <button
@@ -164,34 +184,32 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
                 type="button"
                 onClick={() => !isDownloading && onDownloadFormat(fmt)}
                 disabled={isDownloading}
+                className="animate-fadeUp"
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
                   width: "100%",
-                  padding: "10px 12px",
+                  padding: "10px 14px",
                   borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--border)",
+                  border: `1px solid ${isDownloading ? "var(--border-active)" : "var(--border)"}`,
                   background: isDownloading ? "var(--accent-muted)" : "var(--bg-secondary)",
                   cursor: isDownloading ? "not-allowed" : "pointer",
                   textAlign: "left",
-                  transition: "all 0.15s ease",
+                  animationDelay: `${i * 50}ms`,
+                  opacity: 0,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                  {/* Quality color bar */}
                   <div style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "8px",
-                    background: isAudioOnly ? "var(--purple-muted)" : "var(--accent-muted)",
-                    color: isAudioOnly ? "var(--purple)" : "var(--accent-light)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    width: "3px",
+                    height: "28px",
+                    borderRadius: "3px",
+                    background: qualityColor,
+                    boxShadow: `0 0 8px ${qualityColor}`,
                     flexShrink: 0,
-                  }}>
-                    {isAudioOnly ? <AudioIcon size={15} /> : <VideoIcon size={15} />}
-                  </div>
+                  }} />
 
                   <div style={{ minWidth: 0 }}>
                     <div style={{
@@ -204,46 +222,47 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
                     }}>
                       {fmt.label || fmt.resolution}
                     </div>
-                    <div style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", marginTop: "1px" }}>
+                    <div style={{ fontSize: "0.68rem", color: "var(--text-tertiary)", marginTop: "1px", display: "flex", alignItems: "center", gap: "6px" }}>
                       <span style={{
                         textTransform: "uppercase",
                         fontWeight: 700,
-                        color: isAudioOnly ? "var(--purple)" : "var(--accent-light)",
-                        letterSpacing: "0.03em",
+                        color: qualityColor,
+                        letterSpacing: "0.04em",
+                        fontSize: "0.62rem",
+                        padding: "1px 5px",
+                        borderRadius: "4px",
+                        background: `${qualityColor}15`,
                       }}>
                         {fmt.ext}
                       </span>
-                      {fmt.filesize ? ` · ${formatBytes(fmt.filesize)}` : ""}
+                      {fmt.filesize && <span>{formatBytes(fmt.filesize)}</span>}
                     </div>
                   </div>
                 </div>
 
+                {/* Download pill */}
                 <div style={{
-                  padding: "5px 10px",
-                  borderRadius: "var(--radius-sm)",
+                  padding: "6px 14px",
+                  borderRadius: "20px",
                   background: isDownloading ? "transparent" : "var(--accent-gradient)",
                   color: isDownloading ? "var(--accent-light)" : "#FFF",
-                  fontWeight: 600,
-                  fontSize: "0.74rem",
+                  fontWeight: 700,
+                  fontSize: "0.72rem",
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
                   flexShrink: 0,
                   boxShadow: isDownloading ? "none" : "var(--accent-glow)",
+                  letterSpacing: "0.02em",
                 }}>
                   <DownloadIcon size={12} />
-                  <span>{isDownloading ? "..." : "Get"}</span>
+                  {isDownloading ? "..." : "GET"}
                 </div>
               </button>
             );
           })
         ) : (
-          <div style={{
-            padding: "20px",
-            textAlign: "center",
-            color: "var(--text-tertiary)",
-            fontSize: "0.8rem",
-          }}>
+          <div style={{ padding: "24px", textAlign: "center", color: "var(--text-tertiary)", fontSize: "0.8rem" }}>
             No formats match this filter.
           </div>
         )}

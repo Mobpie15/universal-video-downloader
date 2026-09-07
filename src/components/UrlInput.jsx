@@ -12,15 +12,8 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
         const text = await readClipboard();
         if (text && text.trim().startsWith("http") && text.trim() !== url) {
           const lower = text.toLowerCase();
-          if (
-            lower.includes("instagram.com") ||
-            lower.includes("youtube.com") ||
-            lower.includes("youtu.be") ||
-            lower.includes("tiktok.com") ||
-            lower.includes("facebook.com") ||
-            lower.includes("x.com") ||
-            lower.includes("twitter.com")
-          ) {
+          if (["instagram.com","youtube.com","youtu.be","tiktok.com","facebook.com","x.com","twitter.com"]
+              .some(d => lower.includes(d))) {
             setClipboardUrl(text.trim());
           }
         }
@@ -37,42 +30,54 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
         setClipboardUrl(null);
         showToast("Link pasted");
       } else {
-        showToast("Clipboard is empty");
+        showToast("Clipboard empty");
       }
-    } catch (e) {
-      showToast("Unable to access clipboard");
-    }
-  };
-
-  const handleApplyClipboard = () => {
-    if (clipboardUrl) {
-      setUrl(clipboardUrl);
-      setClipboardUrl(null);
-    }
+    } catch (e) { showToast("Clipboard unavailable"); }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && url.trim() && !isLoading) {
-      onFetch();
-    }
+    if (e.key === "Enter" && url.trim() && !isLoading) onFetch();
   };
 
   const platform = detectPlatform(url);
-  const platformLabel = {
-    youtube: "YouTube",
-    instagram: "Instagram",
-    tiktok: "TikTok",
-    facebook: "Facebook",
-    twitter: "X / Twitter",
+  const platformMeta = {
+    youtube: { label: "YouTube", color: "#FF0000", emoji: "▶️" },
+    instagram: { label: "Instagram", color: "#E1306C", emoji: "📸" },
+    tiktok: { label: "TikTok", color: "#00F2FE", emoji: "🎵" },
+    facebook: { label: "Facebook", color: "#1877F2", emoji: "📘" },
+    twitter: { label: "X / Twitter", color: "#FFFFFF", emoji: "𝕏" },
   }[platform];
 
   return (
-    <div style={{ width: "100%", marginBottom: "20px" }} className="animate-fadeIn">
-      {/* Clipboard Smart Banner */}
+    <div style={{ width: "100%", marginBottom: "24px" }} className="animate-fadeUp">
+      {/* Hero Text */}
+      <div style={{ marginBottom: "20px", textAlign: "center", padding: "0 8px" }}>
+        <h1 style={{
+          fontSize: "1.5rem",
+          fontWeight: 900,
+          letterSpacing: "-0.03em",
+          lineHeight: 1.2,
+          marginBottom: "6px",
+          background: "linear-gradient(135deg, #F4F4F6 0%, #A78BFA 50%, #F472B6 100%)",
+          backgroundSize: "200% 200%",
+          animation: "gradientShift 6s ease infinite",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+        }}>
+          Download any video
+        </h1>
+        <p style={{
+          fontSize: "0.82rem",
+          color: "var(--text-secondary)",
+          fontWeight: 500,
+        }}>
+          YouTube · Instagram · TikTok · Facebook · Twitter
+        </p>
+      </div>
+
+      {/* Clipboard Banner */}
       {clipboardUrl && !url && (
-        <button
-          type="button"
-          onClick={handleApplyClipboard}
+        <button type="button" onClick={() => { setUrl(clipboardUrl); setClipboardUrl(null); }}
           style={{
             width: "100%",
             display: "flex",
@@ -82,61 +87,66 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
             marginBottom: "12px",
             borderRadius: "var(--radius-md)",
             background: "var(--accent-muted)",
-            border: "1px solid rgba(99, 102, 241, 0.2)",
+            border: "1px solid rgba(139, 92, 246, 0.2)",
             color: "var(--text-primary)",
             textAlign: "left",
           }}
         >
-          <SparklesIcon size={16} style={{ color: "var(--accent-light)", flexShrink: 0 }} />
+          <SparklesIcon size={14} style={{ color: "var(--accent-light)", flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: "1px" }}>
-              Video link found in clipboard
-            </div>
-            <div style={{
-              fontSize: "0.72rem",
-              color: "var(--text-secondary)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}>
+            <div style={{ fontSize: "0.78rem", fontWeight: 600 }}>Link found in clipboard</div>
+            <div style={{ fontSize: "0.68rem", color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {clipboardUrl}
             </div>
           </div>
           <span style={{
             padding: "4px 12px",
-            borderRadius: "var(--radius-sm)",
+            borderRadius: "8px",
             background: "var(--accent-gradient)",
             color: "#FFF",
-            fontSize: "0.72rem",
+            fontSize: "0.7rem",
             fontWeight: 700,
             flexShrink: 0,
+            boxShadow: "var(--accent-glow)",
           }}>
             Use
           </span>
         </button>
       )}
 
-      {/* Input + Button */}
+      {/* Input Card */}
       <div style={{
         background: "var(--bg-secondary)",
         border: `1px solid ${url ? "var(--border-active)" : "var(--border)"}`,
-        borderRadius: "var(--radius-lg)",
+        borderRadius: "var(--radius-xl)",
         padding: "6px",
-        transition: "border-color 0.2s ease",
+        transition: "all 0.3s ease",
+        boxShadow: url ? "0 0 40px rgba(139, 92, 246, 0.08)" : "none",
       }}>
-        {/* Input Row */}
         <div style={{
           display: "flex",
           alignItems: "center",
-          padding: "6px 10px",
+          padding: "8px 12px",
           gap: "8px",
         }}>
+          {/* Platform indicator dot */}
+          {platformMeta && (
+            <span style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background: platformMeta.color,
+              boxShadow: `0 0 8px ${platformMeta.color}`,
+              flexShrink: 0,
+            }} />
+          )}
+
           <input
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Paste video link here..."
+            placeholder="Paste video link..."
             style={{
               flex: 1,
               background: "transparent",
@@ -151,30 +161,20 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
           />
 
           {url ? (
-            <button
-              type="button"
-              onClick={() => setUrl("")}
-              style={{
-                padding: "6px",
-                color: "var(--text-tertiary)",
-                display: "flex",
-                alignItems: "center",
-                borderRadius: "6px",
-              }}
+            <button type="button" onClick={() => setUrl("")}
+              style={{ padding: "6px", color: "var(--text-tertiary)", display: "flex", borderRadius: "6px" }}
             >
               <CloseIcon size={16} />
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={handlePaste}
+            <button type="button" onClick={handlePaste}
               style={{
-                padding: "5px 10px",
-                borderRadius: "var(--radius-sm)",
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
-                fontSize: "0.76rem",
+                padding: "5px 12px",
+                borderRadius: "8px",
+                background: "var(--accent-muted)",
+                border: "1px solid rgba(139, 92, 246, 0.2)",
+                color: "var(--accent-light)",
+                fontSize: "0.74rem",
                 fontWeight: 600,
                 display: "flex",
                 alignItems: "center",
@@ -188,54 +188,69 @@ export const UrlInput = ({ url, setUrl, onFetch, isLoading }) => {
           )}
         </div>
 
-        {/* Fetch Button */}
+        {/* Big gradient CTA button */}
         <button
           type="button"
           onClick={onFetch}
           disabled={!url.trim() || isLoading}
+          className={url.trim() && !isLoading ? "animate-glow" : ""}
           style={{
             width: "100%",
-            padding: "11px 16px",
-            borderRadius: "var(--radius-md)",
+            padding: "13px 20px",
+            borderRadius: "var(--radius-lg)",
             background: !url.trim() || isLoading
               ? "var(--bg-elevated)"
               : "var(--accent-gradient)",
-            color: !url.trim() || isLoading ? "var(--text-tertiary)" : "#FFFFFF",
-            fontWeight: 600,
-            fontSize: "0.88rem",
+            color: !url.trim() || isLoading ? "var(--text-tertiary)" : "#FFF",
+            fontWeight: 700,
+            fontSize: "0.92rem",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "8px",
             cursor: !url.trim() || isLoading ? "not-allowed" : "pointer",
-            boxShadow: url.trim() && !isLoading ? "var(--accent-glow)" : "none",
-            transition: "all 0.2s ease",
+            letterSpacing: "-0.01em",
+            transition: "all 0.3s ease",
           }}
         >
           {isLoading ? (
             <>
-              <RefreshIcon size={16} className="animate-spin" />
-              <span>Analyzing...</span>
+              <RefreshIcon size={17} className="animate-spin" />
+              <span>Analyzing video...</span>
             </>
           ) : (
             <>
-              <DownloadIcon size={16} />
+              <DownloadIcon size={17} />
               <span>Get Download Links</span>
             </>
           )}
         </button>
       </div>
 
-      {/* Platform Detection Label */}
-      {platformLabel && (
+      {/* Platform detection badge */}
+      {platformMeta && (
         <div style={{
-          marginTop: "8px",
-          paddingLeft: "4px",
-          fontSize: "0.72rem",
-          color: "var(--text-tertiary)",
-          fontWeight: 500,
+          marginTop: "10px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
         }}>
-          Detected: <span style={{ color: "var(--accent-light)", fontWeight: 600 }}>{platformLabel}</span>
+          <span style={{
+            fontSize: "0.72rem",
+            color: "var(--text-tertiary)",
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            padding: "3px 10px",
+            borderRadius: "20px",
+            background: "var(--bg-secondary)",
+            border: "1px solid var(--border)",
+          }}>
+            <span style={{ fontSize: "0.8rem" }}>{platformMeta.emoji}</span>
+            {platformMeta.label} detected
+          </span>
         </div>
       )}
     </div>
