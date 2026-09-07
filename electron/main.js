@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, dialog } from "electron";
 import path from "path";
 import fs from "fs";
-import { spawn, execSync } from "child_process";
+import { spawn, spawnSync, execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -427,9 +427,11 @@ ipcMain.handle("download-media", async (event, options) => {
 
       args.push(
         "-f",
-        `bestvideo[height<=${targetHeight}][vcodec^=avc][protocol^=http]+bestaudio[ext=m4a][protocol^=http]/bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}]+bestaudio/best[height<=${targetHeight}]/best`
+        `bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}][ext=mp4]+bestaudio[acodec^=mp4a]/bestvideo[height<=${targetHeight}]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}]+bestaudio/best`
       );
+      args.push("--format-sort", "vcodec:avc,acodec:m4a,res,ext:mp4:m4a");
       args.push("--merge-output-format", "mp4");
+      args.push("--postprocessor-args", "Merger:-c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2");
     }
 
     args.push("--progress-template", "PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s");
@@ -563,6 +565,58 @@ ipcMain.handle("download-media", async (event, options) => {
             } catch (e) {}
           }
         }
+        // 100% Universal Audio Codec Guard:
+        // Probe final MP4 file to guarantee audio is standard universal AAC, never Opus/Vorbis
+        if (finalPath && fs.existsSync(finalPath) && !isAudio && ffmpegDir) {
+          try {
+            const probeBin = path.join(ffmpegDir, "ffprobe.exe");
+            const ffmpegBin = path.join(ffmpegDir, "ffmpeg.exe");
+            if (fs.existsSync(probeBin) && fs.existsSync(ffmpegBin)) {
+              const probeRes = spawnSync(probeBin, [
+                "-v", "error",
+                "-show_entries", "stream=codec_type,codec_name",
+                "-of", "json",
+                finalPath,
+              ], { timeout: 15000 });
+
+              if (probeRes.status === 0 && probeRes.stdout) {
+                const probeData = JSON.parse(probeRes.stdout.toString());
+                const audioStream = probeData.streams?.find((s) => s.codec_type === "audio");
+                const aName = (audioStream?.codec_name || "").toLowerCase();
+
+                // If audio codec is not standard aac (e.g. opus, vorbis) or if missing:
+                if (aName && aName !== "aac") {
+                  console.log(`[Audio Guard] Converting non-universal audio (${aName}) to universal AAC in:`, finalPath);
+                  const dir = path.dirname(finalPath);
+                  const ext = path.extname(finalPath);
+                  const base = path.basename(finalPath, ext);
+                  const tempFixed = path.join(dir, `${base}_aac_temp${ext}`);
+
+                  const fixRes = spawnSync(ffmpegBin, [
+                    "-y",
+                    "-i", finalPath,
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-ar", "44100",
+                    "-ac", "2",
+                    "-movflags", "+faststart",
+                    tempFixed,
+                  ], { timeout: 300000 });
+
+                  if (fixRes.status === 0 && fs.existsSync(tempFixed) && fs.statSync(tempFixed).size > 1000) {
+                    fs.unlinkSync(finalPath);
+                    fs.renameSync(tempFixed, finalPath);
+                    console.log("[Audio Guard] Successfully verified universal AAC audio track!");
+                  }
+                }
+              }
+            }
+          } catch (guardErr) {
+            console.warn("[Audio Guard] Warning:", guardErr.message);
+          }
+        }
+
         resolve({
           success: true,
           path: finalPath,

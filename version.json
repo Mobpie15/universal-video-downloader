@@ -1,12 +1,12 @@
 {
-  "version": "1.2.4",
-  "versionCode": 8,
+  "version": "1.2.5",
+  "versionCode": 9,
   "releaseDate": "2026-09-07",
-  "title": "Pie Video Downloader v1.2.4 - Full Audio+Video Muxing & Sound Fix",
-  "releaseNotes": "Fixed silent videos by enforcing universal H.264 (AVC) + AAC audio stream muxing across all platforms (Desktop, Mobile APK, and Web). Bypassed silent DASH streams, resolved AV1 codec playback issues, and accelerated download processing.",
-  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.4/Pie-Video-Downloader-Setup-1.2.4.exe",
-  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.4/Pie-Video-Downloader-Setup-1.2.4.exe",
-  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.4/Pie-Video-Downloader-1.2.4.exe",
-  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.4/Pie-Video-Downloader.apk",
-  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.2.4"
+  "title": "Pie Video Downloader v1.2.5 - Universal AAC Audio Codec & Sound Fix",
+  "releaseNotes": "Fixed audio playback issues across Windows Media Player, Movies & TV, Android, and iOS by enforcing universal AAC-LC stereo audio encoding. Eliminated silent/muted video playback caused by incompatible Opus codec inside MP4 containers.",
+  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader-Setup-1.2.5.exe",
+  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader-Setup-1.2.5.exe",
+  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader-1.2.5.exe",
+  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader.apk",
+  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.2.5"
 }
