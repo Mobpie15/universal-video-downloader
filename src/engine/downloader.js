@@ -84,9 +84,11 @@ export class Downloader {
     this.activeDownloads.set(id, { controller, status: "downloading" });
 
     let downloadTargetUrl = url;
+    const isYouTube = (mediaUrl || url || "").includes("youtube.com") || (mediaUrl || url || "").includes("youtu.be");
+    const isAlreadyServerUrl = Boolean(downloadTargetUrl && downloadTargetUrl.includes("/api/download-file"));
 
-    // Check if the stream requires server-side generation
-    if (!downloadTargetUrl || downloadTargetUrl.includes("/api/download-file?id=")) {
+    // Check if the stream requires server-side generation (always required for YouTube to mux video + audio)
+    if (!isAlreadyServerUrl && (!downloadTargetUrl || isYouTube)) {
       try {
         if (onProgress) {
           onProgress({
@@ -97,6 +99,10 @@ export class Downloader {
             totalBytes: 0,
           });
         }
+
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 35000);
 
         const prepRes = await fetch("https://www.pietools.online/api/download", {
           method: "POST",
@@ -110,17 +116,24 @@ export class Downloader {
           }),
           signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         const prepData = await prepRes.json();
         if (!prepData.success || !prepData.downloadUrl) {
           throw new Error(
             prepData.error ||
-              "YouTube is temporarily rate-limiting server processing. Please try another quality or use Desktop."
+              "Processing took too long. Please select 720p or 360p, or download using the Desktop app."
           );
         }
-        downloadTargetUrl = `https://www.pietools.online${prepData.downloadUrl}`;
+        downloadTargetUrl = prepData.downloadUrl.startsWith("http")
+          ? prepData.downloadUrl
+          : `https://www.pietools.online${prepData.downloadUrl}`;
       } catch (prepErr) {
-        if (prepErr.name === "AbortError") return;
+        if (prepErr.name === "AbortError") {
+          this.activeDownloads.delete(id);
+          if (onError) onError(new Error("Download request timed out after 35 seconds. Please try 720p/360p or Desktop app."));
+          return;
+        }
         this.activeDownloads.delete(id);
         if (onError) onError(prepErr);
         return;

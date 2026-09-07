@@ -1,14 +1,19 @@
 import React, { useState } from "react";
-import { VideoIcon, AudioIcon, DownloadIcon } from "./icons/Icons.jsx";
+import { VideoIcon, AudioIcon, DownloadIcon, SparklesIcon, RefreshIcon } from "./icons/Icons.jsx";
 
 export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) => {
-  const [filterType, setFilterType] = useState("all");
+  const [filterTab, setFilterTab] = useState("recommended"); // 'recommended' | 'video' | 'audio' | 'all'
+
   if (!media) return null;
 
   const formatDuration = (sec) => {
     if (!sec) return null;
-    const m = Math.floor(sec / 60);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    }
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
@@ -20,250 +25,445 @@ export const MediaPreview = ({ media, onDownloadFormat, downloadingFormatId }) =
   };
 
   const formats = media.formats || [];
-  const filteredFormats = formats.filter((fmt) => {
-    const isAudioOnly = fmt.type === "audio" || !fmt.hasVideo;
-    if (filterType === "video") return !isAudioOnly;
-    if (filterType === "audio") return isAudioOnly;
-    return true;
-  });
 
-  const hasVideo = formats.some(f => f.type !== "audio" && f.hasVideo);
-  const hasAudio = formats.some(f => f.type === "audio" || !f.hasVideo);
+  // Group and categorize formats
+  const videoFormats = formats.filter((f) => f.type !== "audio" && f.hasVideo);
+  const audioFormats = formats.filter((f) => f.type === "audio" || !f.hasVideo);
 
-  // Color based on resolution
-  const getQualityColor = (label) => {
-    if (!label) return "var(--accent-light)";
-    const l = label.toLowerCase();
-    if (l.includes("2160") || l.includes("4k")) return "#FB923C";
-    if (l.includes("1440") || l.includes("1080")) return "#F472B6";
-    if (l.includes("720")) return "#8B5CF6";
-    if (l.includes("480") || l.includes("360")) return "#60A5FA";
-    return "var(--accent-light)";
+  // Pick top recommended formats (e.g. 1080p, 720p, and top audio)
+  const recommendedFormats = [];
+  const top1080 = videoFormats.find((f) => f.resolution?.includes("1080"));
+  const top720 = videoFormats.find((f) => f.resolution?.includes("720"));
+  const top480 = videoFormats.find((f) => f.resolution?.includes("480") || f.resolution?.includes("360"));
+  const topAudio = audioFormats[0];
+
+  if (top1080) recommendedFormats.push(top1080);
+  if (top720 && top720 !== top1080) recommendedFormats.push(top720);
+  if (top480 && recommendedFormats.length < 3) recommendedFormats.push(top480);
+  if (topAudio) recommendedFormats.push(topAudio);
+
+  // Selected formats based on active tab
+  let displayedFormats = formats;
+  if (filterTab === "recommended" && recommendedFormats.length > 0) {
+    displayedFormats = recommendedFormats;
+  } else if (filterTab === "video") {
+    displayedFormats = videoFormats;
+  } else if (filterTab === "audio") {
+    displayedFormats = audioFormats;
+  }
+
+  const getFormatBadgeStyle = (fmt) => {
+    const isAudio = fmt.type === "audio" || !fmt.hasVideo;
+    const res = (fmt.resolution || "").toLowerCase();
+
+    if (isAudio) {
+      return {
+        bg: "rgba(192, 132, 252, 0.15)",
+        border: "rgba(192, 132, 252, 0.35)",
+        color: "#C084FC",
+        tag: "Studio MP3",
+      };
+    }
+    if (res.includes("2160") || res.includes("4k")) {
+      return {
+        bg: "rgba(251, 146, 60, 0.15)",
+        border: "rgba(251, 146, 60, 0.35)",
+        color: "#FB923C",
+        tag: "4K UHD",
+      };
+    }
+    if (res.includes("1080")) {
+      return {
+        bg: "rgba(244, 114, 182, 0.15)",
+        border: "rgba(244, 114, 182, 0.35)",
+        color: "#F472B6",
+        tag: "Full HD",
+      };
+    }
+    if (res.includes("720")) {
+      return {
+        bg: "rgba(139, 92, 246, 0.15)",
+        border: "rgba(139, 92, 246, 0.35)",
+        color: "#A78BFA",
+        tag: "High Def",
+      };
+    }
+    return {
+      bg: "rgba(96, 165, 250, 0.15)",
+      border: "rgba(96, 165, 250, 0.35)",
+      color: "#60A5FA",
+      tag: "Standard",
+    };
   };
 
   return (
-    <div className="animate-slideUp" style={{ marginBottom: "20px" }}>
-      {/* Video Card */}
-      <div style={{
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-xl)",
-        overflow: "hidden",
-        marginBottom: "14px",
-      }}>
-        {/* Thumbnail */}
+    <div className="animate-slideUp" style={{ marginBottom: "26px" }}>
+      {/* ── Cinematic Video Hero Card ── */}
+      <div
+        className="studio-card"
+        style={{
+          overflow: "hidden",
+          marginBottom: "18px",
+          border: "1px solid rgba(255, 255, 255, 0.09)",
+        }}
+      >
         {media.thumbnail && (
-          <div style={{
-            position: "relative",
-            width: "100%",
-            paddingTop: "56.25%",
-            background: "#000",
-            overflow: "hidden",
-          }}>
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              paddingTop: "48%",
+              background: "#08080A",
+              overflow: "hidden",
+            }}
+          >
             <img
               src={media.thumbnail}
               alt={media.title}
               style={{
                 position: "absolute",
-                top: 0, left: 0,
+                top: 0,
+                left: 0,
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
               }}
-              onError={(e) => { e.target.style.display = "none"; }}
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
             />
-            {/* Gradient overlay at bottom */}
-            <div style={{
-              position: "absolute",
-              bottom: 0, left: 0, right: 0,
-              height: "50%",
-              background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
-            }} />
-            {/* Duration badge */}
-            {media.duration > 0 && (
-              <span style={{
+
+            {/* Cinematic Gradient Overlays */}
+            <div
+              style={{
                 position: "absolute",
-                bottom: "10px",
-                right: "10px",
-                background: "rgba(0, 0, 0, 0.6)",
-                backdropFilter: "blur(8px)",
-                color: "#FFF",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                padding: "3px 8px",
-                borderRadius: "8px",
-                fontFamily: "var(--font-mono)",
-              }}>
+                inset: 0,
+                background: "linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(10,10,14,0.85) 100%)",
+              }}
+            />
+
+            {/* Duration Tag */}
+            {media.duration > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: "12px",
+                  right: "14px",
+                  background: "rgba(0, 0, 0, 0.75)",
+                  backdropFilter: "blur(10px)",
+                  color: "#FFFFFF",
+                  fontSize: "0.75rem",
+                  fontWeight: 800,
+                  padding: "4px 10px",
+                  borderRadius: "8px",
+                  fontFamily: "var(--font-mono)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                }}
+              >
                 {formatDuration(media.duration)}
               </span>
             )}
-            {/* Format count badge */}
-            <span style={{
-              position: "absolute",
-              bottom: "10px",
-              left: "10px",
-              background: "var(--accent-gradient)",
-              color: "#FFF",
-              fontSize: "0.68rem",
-              fontWeight: 700,
-              padding: "3px 10px",
-              borderRadius: "8px",
-              boxShadow: "var(--accent-glow)",
-            }}>
-              {formats.length} formats
-            </span>
+
+            {/* Platform & Stream Count Pill */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "12px",
+                left: "14px",
+                display: "flex",
+                gap: "6px",
+              }}
+            >
+              <span
+                style={{
+                  background: "var(--accent-gradient)",
+                  color: "#FFF",
+                  fontSize: "0.7rem",
+                  fontWeight: 800,
+                  padding: "4px 11px",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 10px rgba(139, 92, 246, 0.5)",
+                }}
+              >
+                {media.platform ? media.platform.toUpperCase() : "STREAM"}
+              </span>
+              <span
+                style={{
+                  background: "rgba(0, 0, 0, 0.65)",
+                  backdropFilter: "blur(8px)",
+                  color: "#E2E8F0",
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  padding: "4px 10px",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                }}
+              >
+                {formats.length} Available Qualities
+              </span>
+            </div>
           </div>
         )}
 
-        {/* Title */}
-        <div style={{ padding: "14px 16px" }}>
-          <h3 style={{
-            fontSize: "0.92rem",
-            fontWeight: 700,
-            color: "var(--text-primary)",
-            lineHeight: 1.35,
-            margin: "0 0 4px 0",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}>
+        {/* Video Title & Author Metadata */}
+        <div style={{ padding: "16px 18px" }}>
+          <h2
+            style={{
+              fontSize: "1.02rem",
+              fontWeight: 800,
+              color: "#FFFFFF",
+              lineHeight: 1.38,
+              margin: "0 0 6px 0",
+              letterSpacing: "-0.015em",
+            }}
+          >
             {media.title}
-          </h3>
-          {media.author && (
-            <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", margin: 0, fontWeight: 500 }}>
-              {media.author}
-            </p>
-          )}
+          </h2>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            {media.author && (
+              <span
+                style={{
+                  fontSize: "0.8rem",
+                  color: "var(--accent-light)",
+                  fontWeight: 600,
+                }}
+              >
+                {media.author}
+              </span>
+            )}
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>•</span>
+            <span style={{ fontSize: "0.76rem", color: "var(--text-tertiary)" }}>
+              High-Speed DASH Remuxing Ready
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Filter pills */}
-      {hasVideo && hasAudio && (
-        <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
-          {[
-            { id: "all", label: "All", icon: "📦" },
-            { id: "video", label: "Video", icon: "🎬" },
-            { id: "audio", label: "Audio", icon: "🎵" },
-          ].map((t) => {
-            const isActive = filterType === t.id;
-            return (
-              <button key={t.id} type="button" onClick={() => setFilterType(t.id)}
-                style={{
-                  padding: "6px 14px",
-                  fontSize: "0.76rem",
-                  fontWeight: isActive ? 700 : 500,
-                  borderRadius: "20px",
-                  background: isActive ? "var(--accent-muted)" : "var(--bg-secondary)",
-                  color: isActive ? "var(--accent-light)" : "var(--text-tertiary)",
-                  border: `1px solid ${isActive ? "rgba(139, 92, 246, 0.3)" : "var(--border)"}`,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <span style={{ fontSize: "0.72rem" }}>{t.icon}</span>
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* ── Category Filter Tabs ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "14px",
+          overflowX: "auto",
+          paddingBottom: "2px",
+        }}
+      >
+        {[
+          { id: "recommended", label: "Recommended", icon: <SparklesIcon size={13} /> },
+          { id: "video", label: `Video (${videoFormats.length})`, icon: <VideoIcon size={13} /> },
+          { id: "audio", label: `Audio (${audioFormats.length})`, icon: <AudioIcon size={13} /> },
+          { id: "all", label: `All Tracks (${formats.length})`, icon: null },
+        ].map((tab) => {
+          const isActive = filterTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setFilterTab(tab.id)}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "12px",
+                fontSize: "0.78rem",
+                fontWeight: isActive ? 800 : 600,
+                background: isActive
+                  ? "linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(99, 102, 241, 0.15) 100%)"
+                  : "rgba(22, 22, 28, 0.7)",
+                border: `1px solid ${isActive ? "rgba(139, 92, 246, 0.45)" : "rgba(255, 255, 255, 0.06)"}`,
+                color: isActive ? "#FFFFFF" : "var(--text-secondary)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                boxShadow: isActive ? "0 4px 14px rgba(139, 92, 246, 0.25)" : "none",
+                transition: "all 0.18s ease",
+              }}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Format List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        {filteredFormats.length > 0 ? (
-          filteredFormats.map((fmt, i) => {
+      {/* ── Modern Quality Cards Matrix Grid ── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: "12px",
+        }}
+      >
+        {displayedFormats.length > 0 ? (
+          displayedFormats.map((fmt, idx) => {
             const isDownloading = downloadingFormatId === fmt.formatId;
-            const isAudioOnly = fmt.type === "audio" || !fmt.hasVideo;
-            const qualityColor = isAudioOnly ? "var(--purple)" : getQualityColor(fmt.label || fmt.resolution);
+            const badge = getFormatBadgeStyle(fmt);
+            const isAudio = fmt.type === "audio" || !fmt.hasVideo;
 
             return (
-              <button
-                key={fmt.formatId}
-                type="button"
+              <div
+                key={fmt.formatId || idx}
+                className={`quality-card ${isDownloading ? "is-active" : ""}`}
                 onClick={() => !isDownloading && onDownloadFormat(fmt)}
-                disabled={isDownloading}
-                className="animate-fadeUp"
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  flexDirection: "column",
                   justifyContent: "space-between",
-                  width: "100%",
-                  padding: "10px 14px",
-                  borderRadius: "var(--radius-md)",
-                  border: `1px solid ${isDownloading ? "var(--border-active)" : "var(--border)"}`,
-                  background: isDownloading ? "var(--accent-muted)" : "var(--bg-secondary)",
-                  cursor: isDownloading ? "not-allowed" : "pointer",
-                  textAlign: "left",
-                  animationDelay: `${i * 50}ms`,
-                  opacity: 0,
+                  gap: "12px",
+                  border: isDownloading
+                    ? "1px solid rgba(139, 92, 246, 0.6)"
+                    : "1px solid rgba(255, 255, 255, 0.07)",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
-                  {/* Quality color bar */}
-                  <div style={{
-                    width: "3px",
-                    height: "28px",
-                    borderRadius: "3px",
-                    background: qualityColor,
-                    boxShadow: `0 0 8px ${qualityColor}`,
-                    flexShrink: 0,
-                  }} />
-
+                {/* Card Top Row: Quality Title & Badges */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{
-                      fontWeight: 600,
-                      fontSize: "0.84rem",
-                      color: "var(--text-primary)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}>
-                      {fmt.label || fmt.resolution}
-                    </div>
-                    <div style={{ fontSize: "0.68rem", color: "var(--text-tertiary)", marginTop: "1px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={{
-                        textTransform: "uppercase",
-                        fontWeight: 700,
-                        color: qualityColor,
-                        letterSpacing: "0.04em",
-                        fontSize: "0.62rem",
-                        padding: "1px 5px",
-                        borderRadius: "4px",
-                        background: `${qualityColor}15`,
-                      }}>
-                        {fmt.ext}
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "4px" }}>
+                      <span
+                        style={{
+                          fontSize: "0.66rem",
+                          fontWeight: 800,
+                          padding: "2px 7px",
+                          borderRadius: "6px",
+                          background: badge.bg,
+                          border: `1px solid ${badge.border}`,
+                          color: badge.color,
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {badge.tag}
                       </span>
-                      {fmt.filesize && <span>{formatBytes(fmt.filesize)}</span>}
+                      <span
+                        style={{
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          color: "var(--text-tertiary)",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {(fmt.ext || (isAudio ? "mp3" : "mp4")).toUpperCase()}
+                      </span>
                     </div>
+
+                    <h4
+                      style={{
+                        fontSize: "0.95rem",
+                        fontWeight: 800,
+                        color: "#FFFFFF",
+                        margin: 0,
+                        lineHeight: 1.25,
+                      }}
+                    >
+                      {fmt.resolution || fmt.label}
+                    </h4>
+                  </div>
+
+                  {/* Icon badge */}
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "9px",
+                      background: isAudio ? "rgba(192, 132, 252, 0.12)" : "rgba(139, 92, 246, 0.12)",
+                      border: `1px solid ${isAudio ? "rgba(192, 132, 252, 0.25)" : "rgba(139, 92, 246, 0.25)"}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: isAudio ? "#C084FC" : "#A78BFA",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isAudio ? <AudioIcon size={16} /> : <VideoIcon size={16} />}
                   </div>
                 </div>
 
-                {/* Download pill */}
-                <div style={{
-                  padding: "6px 14px",
-                  borderRadius: "20px",
-                  background: isDownloading ? "transparent" : "var(--accent-gradient)",
-                  color: isDownloading ? "var(--accent-light)" : "#FFF",
-                  fontWeight: 700,
-                  fontSize: "0.72rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  flexShrink: 0,
-                  boxShadow: isDownloading ? "none" : "var(--accent-glow)",
-                  letterSpacing: "0.02em",
-                }}>
-                  <DownloadIcon size={12} />
-                  {isDownloading ? "..." : "GET"}
+                {/* Card Middle Row: Specifications & Size */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 10px",
+                    borderRadius: "8px",
+                    background: "rgba(0, 0, 0, 0.35)",
+                    fontSize: "0.72rem",
+                    color: "var(--text-secondary)",
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>
+                    {isAudio ? "Universal Stereo Audio" : "High Quality H.264"}
+                  </span>
+                  <span style={{ color: "#FFFFFF", fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                    {fmt.filesize ? formatBytes(fmt.filesize) : "Adaptive Size"}
+                  </span>
                 </div>
-              </button>
+
+                {/* Card Bottom Row: 1-Click Action Button */}
+                <button
+                  type="button"
+                  disabled={isDownloading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isDownloading) onDownloadFormat(fmt);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    background: isDownloading
+                      ? "rgba(139, 92, 246, 0.2)"
+                      : "linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)",
+                    border: isDownloading
+                      ? "1px solid rgba(139, 92, 246, 0.4)"
+                      : "none",
+                    color: "#FFFFFF",
+                    fontSize: "0.82rem",
+                    fontWeight: 800,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "7px",
+                    cursor: isDownloading ? "not-allowed" : "pointer",
+                    boxShadow: isDownloading
+                      ? "none"
+                      : "0 4px 16px rgba(139, 92, 246, 0.35)",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {isDownloading ? (
+                    <>
+                      <RefreshIcon size={14} className="animate-spin" />
+                      <span>Downloading Stream...</span>
+                    </>
+                  ) : (
+                    <>
+                      <DownloadIcon size={14} />
+                      <span>Download {isAudio ? "MP3 Audio" : `${fmt.resolution || "Video"}`}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             );
           })
         ) : (
-          <div style={{ padding: "24px", textAlign: "center", color: "var(--text-tertiary)", fontSize: "0.8rem" }}>
-            No formats match this filter.
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              padding: "36px 20px",
+              textAlign: "center",
+              color: "var(--text-tertiary)",
+              fontSize: "0.85rem",
+              background: "rgba(20, 20, 26, 0.6)",
+              borderRadius: "var(--radius-lg)",
+              border: "1px dashed rgba(255, 255, 255, 0.08)",
+            }}
+          >
+            No formats found for this category. Try selecting 'All Tracks'.
           </div>
         )}
       </div>

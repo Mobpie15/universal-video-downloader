@@ -161,6 +161,90 @@ body {
   border-color: var(--border-active);
 }
 
+/* ── Studio Cards & High-End Visuals ── */
+.studio-card {
+  background: linear-gradient(180deg, rgba(23, 23, 28, 0.85) 0%, rgba(14, 14, 18, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 30px rgba(139, 92, 246, 0.06);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.quality-card {
+  background: linear-gradient(135deg, rgba(26, 26, 32, 0.8) 0%, rgba(18, 18, 23, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.quality-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 92, 246, 0.45);
+  background: linear-gradient(135deg, rgba(34, 34, 44, 0.9) 0%, rgba(22, 22, 29, 0.95) 100%);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 24px rgba(139, 92, 246, 0.2);
+}
+
+.quality-card:active {
+  transform: scale(0.98);
+}
+
+.quality-card.is-active {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+}
+
+.laser-progress-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.laser-progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #8B5CF6 0%, #6366F1 45%, #06B6D4 80%, #34D399 100%);
+  position: relative;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 18px rgba(139, 92, 246, 0.8), 0 0 8px rgba(6, 182, 212, 0.6);
+}
+
+.laser-progress-fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+  animation: laserShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes laserShimmer {
+  0% { transform: translateX(-100%); opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0.2; }
+}
+
+.hud-stat-box {
+  background: rgba(10, 10, 14, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 /* ── Buttons ── */
 button {
   font-family: inherit;

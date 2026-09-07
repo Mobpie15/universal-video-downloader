@@ -1,13 +1,57 @@
 import { app, BrowserWindow, shell, ipcMain, dialog } from "electron";
 import path from "path";
 import fs from "fs";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow = null;
+
+function getNodePath() {
+  const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+
+  // 1. In dev, check local repo electron/bin
+  if (isDev) {
+    const devPath = path.join(__dirname, "bin", "node.exe");
+    if (fs.existsSync(devPath)) return devPath;
+    const devParent = path.join(__dirname, "..", "electron", "bin", "node.exe");
+    if (fs.existsSync(devParent)) return devParent;
+  }
+
+  // 2. Known local Windows node installations
+  const known = [
+    "C:\\nvm4w\\nodejs\\node.exe",
+    "C:\\Program Files\\nodejs\\node.exe",
+    "C:\\Program Files (x86)\\nodejs\\node.exe",
+  ];
+  for (const p of known) {
+    if (fs.existsSync(p)) return p;
+  }
+
+  // 3. Check standalone filesystem paths outside app.asar
+  const nonAsarPaths = [
+    path.join(process.resourcesPath, "bin", "node.exe"),
+    path.join(process.resourcesPath, "app.asar.unpacked", "electron", "bin", "node.exe"),
+    path.join(path.dirname(process.execPath), "resources", "bin", "node.exe"),
+    path.join(path.dirname(process.execPath), "bin", "node.exe"),
+  ];
+  for (const p of nonAsarPaths) {
+    if (fs.existsSync(p)) return p;
+  }
+
+  // 4. Try resolving via system PATH
+  try {
+    const isWindows = process.platform === "win32";
+    const whereCmd = isWindows ? "where" : "which";
+    const out = execSync(`${whereCmd} node`, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const firstLine = out.split(/[\r\n]+/)[0]?.trim();
+    if (firstLine && fs.existsSync(firstLine)) return firstLine;
+  } catch (e) {}
+
+  return "node";
+}
 
 function getYtDlpPath() {
   const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
@@ -203,17 +247,29 @@ function createWindow() {
 ipcMain.handle("extract-media", async (event, url) => {
   return new Promise((resolve, reject) => {
     const binPath = getYtDlpPath();
+    const nodePath = getNodePath();
     const args = [
       "--dump-single-json",
       "--no-warnings",
       "--skip-download",
       "--no-playlist",
-      "--extractor-retries", "5",
-      "--retry-sleep", "extractor:5",
-      url.trim(),
+      "--socket-timeout", "12",
+      "--extractor-retries", "2",
+      "--retry-sleep", "extractor:2",
     ];
 
-    const proc = spawn(binPath, args);
+    if (nodePath && nodePath !== "node") {
+      args.push("--js-runtimes", `node:${nodePath}`);
+    } else {
+      args.push("--js-runtimes", "node");
+    }
+    const ffmpegDir = getFfmpegDir();
+    const proc = spawn(binPath, args, {
+      env: {
+        ...process.env,
+        PATH: ffmpegDir ? `${ffmpegDir};${process.env.PATH || ""}` : process.env.PATH,
+      },
+    });
     let stdout = "";
     let stderr = "";
 
@@ -260,19 +316,26 @@ ipcMain.handle("extract-media", async (event, url) => {
 
         // 2. High-Def Progressive / Adaptive Video Streams (1080p, 720p, 480p, 360p)
         const targetHeights = [2160, 1440, 1080, 720, 480, 360];
+        const isDirectHttp = (f) => f && f.url && (!f.protocol || f.protocol.startsWith("http")) && !f.url.includes(".m3u8") && !f.url.includes("manifest");
+
         for (const h of targetHeights) {
-          const matching = rawFormats.find(
-            (f) => f.height === h && (f.ext === "mp4" || f.ext === "webm") && f.url
+          // Prefer HTTP DASH MP4/WEBM streams over m3u8 playlists
+          let matching = rawFormats.find(
+            (f) => f.height === h && (f.ext === "mp4" || f.ext === "webm") && isDirectHttp(f)
           );
+          if (!matching) {
+            matching = rawFormats.find(
+              (f) => f.height === h && (f.ext === "mp4" || f.ext === "webm") && f.url
+            );
+          }
           if (matching && !formats.some((item) => item.resolution?.includes(`${h}p`))) {
-            const isFullMp4 = matching.ext === "mp4";
             formats.push({
               formatId: String(matching.format_id),
               resolution: `${h}p HD`,
               ext: matching.ext || "mp4",
               url: matching.url,
               filesize: matching.filesize || matching.filesize_approx || null,
-              hasAudio: matching.acodec !== "none",
+              hasAudio: true, // Native yt-dlp will automatically mux audio with bestaudio during download
               hasVideo: true,
               type: "video",
               label: `${h}p HD Video (${matching.ext ? matching.ext.toUpperCase() : "MP4"})`,
@@ -282,9 +345,10 @@ ipcMain.handle("extract-media", async (event, url) => {
 
         // 3. Audio Streams
         const audioStreams = rawFormats.filter(
-          (f) => f.acodec !== "none" && f.vcodec === "none" && f.url
+          (f) => f.acodec !== "none" && f.vcodec === "none" && f.url && isDirectHttp(f)
         );
-        for (const a of audioStreams.slice(-3)) {
+        const fallbackAudio = audioStreams.length ? audioStreams : rawFormats.filter((f) => f.acodec !== "none" && f.vcodec === "none" && f.url);
+        for (const a of fallbackAudio.slice(-3)) {
           const bitrate = Math.round(a.tbr || a.abr || 128);
           formats.push({
             formatId: String(a.format_id),
@@ -323,6 +387,7 @@ ipcMain.handle("download-media", async (event, options) => {
   const { id, url, formatId, ext, isAudio, title, resolution } = options;
   return new Promise((resolve, reject) => {
     const binPath = getYtDlpPath();
+    const nodePath = getNodePath();
     const ffmpegDir = getFfmpegDir();
     const downloadsDir = app.getPath("downloads");
     const safeTitle = (title || "video").replace(/[\\/*?:"<>|]/g, "_").slice(0, 45).trim();
@@ -332,13 +397,19 @@ ipcMain.handle("download-media", async (event, options) => {
       "--no-warnings",
       "--no-colors",
       "--newline",
-      "--js-runtimes",
-      "node",
-      "--extractor-retries", "3",
-      "--retry-sleep", "extractor:3",
-      "--file-access-retries", "3",
-      "--socket-timeout", "30",
+      "--concurrent-fragments", "4",
+      "--buffer-size", "64K",
+      "--extractor-retries", "2",
+      "--retry-sleep", "extractor:2",
+      "--file-access-retries", "2",
+      "--socket-timeout", "20",
     ];
+
+    if (nodePath && nodePath !== "node") {
+      args.push("--js-runtimes", `node:${nodePath}`);
+    } else {
+      args.push("--js-runtimes", "node");
+    }
 
     if (ffmpegDir && fs.existsSync(path.join(ffmpegDir, "ffmpeg.exe"))) {
       args.push("--ffmpeg-location", ffmpegDir);
@@ -346,12 +417,18 @@ ipcMain.handle("download-media", async (event, options) => {
 
     if (isAudio || ext === "mp3") {
       args.push("-x", "--audio-format", "mp3");
+      args.push("-f", "bestaudio[protocol^=http][ext=m4a]/bestaudio[protocol^=http]/bestaudio/best");
     } else {
-      if (formatId && formatId !== "direct" && !formatId.startsWith("pie-")) {
-        args.push("-f", `${formatId}+bestaudio/${formatId}/bestvideo+bestaudio/best`);
-      } else {
-        args.push("-f", "bestvideo+bestaudio/best");
+      let targetHeight = 1080;
+      if (resolution) {
+        const matchH = resolution.match(/(\d+)/);
+        if (matchH) targetHeight = parseInt(matchH[1], 10);
       }
+
+      args.push(
+        "-f",
+        `bestvideo[height<=${targetHeight}][vcodec^=avc][protocol^=http]+bestaudio[ext=m4a][protocol^=http]/bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}]+bestaudio/best[height<=${targetHeight}]/best`
+      );
       args.push("--merge-output-format", "mp4");
     }
 
@@ -362,43 +439,82 @@ ipcMain.handle("download-media", async (event, options) => {
 
     // Send immediate "preparing" progress so UI isn't stuck at 0%
     event.sender.send(`download-progress-${id}`, {
-      percent: 1,
+      percent: 2,
       speedMBps: "preparing",
       etaSeconds: "...",
     });
 
-    const proc = spawn(binPath, args);
+    const proc = spawn(binPath, args, {
+      env: {
+        ...process.env,
+        PATH: ffmpegDir ? `${ffmpegDir};${process.env.PATH || ""}` : process.env.PATH,
+      },
+    });
     activeProcesses.set(id, proc);
 
     let finalPath = "";
     let errorOutput = "";
     let hasReceivedProgress = false;
 
+    const parseProgressLine = (line) => {
+      if (line.includes("PROGRESS:")) {
+        hasReceivedProgress = true;
+        const parts = line.replace(/.*PROGRESS:/, "").split("|");
+        const percentStr = parts[0] ? parts[0].replace("%", "").trim() : "0";
+        const speedStr = parts[1] ? parts[1].trim() : "0.0";
+        const etaStr = parts[2] ? parts[2].trim() : "0";
+
+        let percent = parseFloat(percentStr) || 0;
+        let speedMBps = "0.0";
+        if (speedStr.includes("MiB/s") || speedStr.includes("MB/s")) {
+          speedMBps = parseFloat(speedStr).toFixed(1);
+        } else if (speedStr.includes("KiB/s") || speedStr.includes("KB/s")) {
+          speedMBps = (parseFloat(speedStr) / 1024).toFixed(1);
+        }
+
+        event.sender.send(`download-progress-${id}`, {
+          percent: Math.min(100, Math.max(3, Math.round(percent))),
+          speedMBps,
+          etaSeconds: etaStr,
+        });
+      } else {
+        // Fallback regex for standard yt-dlp download lines:
+        // [download]  12.5% of 426.45MiB at 4.52MiB/s ETA 00:35
+        // [download]   1.2% of ~ 1.20GiB at 12.5MiB/s ETA 01:20
+        const match = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%(?:\s+of\s+[~]?\s*([\d\.]+\s*[A-Za-z]+))?(?:\s+at\s+([\d\.]+\s*[A-Za-z]+\/s|Unknown))?(?:\s+ETA\s+([0-9:]+|Unknown))?/i);
+        if (match) {
+          hasReceivedProgress = true;
+          const percent = parseFloat(match[1]) || 0;
+          const speedRaw = match[3] || "";
+          let speedMBps = "0.0";
+          if (speedRaw.includes("MiB/s") || speedRaw.includes("MB/s")) {
+            speedMBps = parseFloat(speedRaw).toFixed(1);
+          } else if (speedRaw.includes("KiB/s") || speedRaw.includes("KB/s")) {
+            speedMBps = (parseFloat(speedRaw) / 1024).toFixed(1);
+          }
+          const etaStr = (match[4] && match[4] !== "Unknown") ? match[4] : "...";
+
+          event.sender.send(`download-progress-${id}`, {
+            percent: Math.min(100, Math.max(3, Math.round(percent))),
+            speedMBps: speedMBps !== "0.0" ? speedMBps : "streaming",
+            etaSeconds: etaStr,
+          });
+        } else if (line.includes("[Merger]") || line.includes("Merging formats") || line.includes("[FixupM4a]")) {
+          event.sender.send(`download-progress-${id}`, {
+            percent: 98,
+            speedMBps: "remuxing",
+            etaSeconds: "00:02",
+          });
+        }
+      }
+    };
+
     proc.stdout.on("data", (chunk) => {
       const text = chunk.toString();
       const lines = text.split(/[\r\n]+/);
       for (const line of lines) {
-        if (line.startsWith("PROGRESS:")) {
-          hasReceivedProgress = true;
-          const parts = line.replace("PROGRESS:", "").split("|");
-          const percentStr = parts[0] ? parts[0].replace("%", "").trim() : "0";
-          const speedStr = parts[1] ? parts[1].trim() : "0.0";
-          const etaStr = parts[2] ? parts[2].trim() : "0";
-
-          let percent = parseFloat(percentStr) || 0;
-          let speedMBps = "0.0";
-          if (speedStr.includes("MiB/s") || speedStr.includes("MB/s")) {
-            speedMBps = parseFloat(speedStr).toFixed(1);
-          } else if (speedStr.includes("KiB/s") || speedStr.includes("KB/s")) {
-            speedMBps = (parseFloat(speedStr) / 1024).toFixed(1);
-          }
-
-          event.sender.send(`download-progress-${id}`, {
-            percent: Math.min(100, Math.max(2, Math.round(percent))),
-            speedMBps,
-            etaSeconds: etaStr,
-          });
-        } else if (
+        parseProgressLine(line);
+        if (
           line.trim() &&
           (line.endsWith(".mp4") ||
             line.endsWith(".mp3") ||

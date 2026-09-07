@@ -232,6 +232,7 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={handleTabSelect}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        downloadsCount={downloadQueue.length}
       />
 
       {/* Main Container */}

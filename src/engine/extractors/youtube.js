@@ -40,15 +40,15 @@ export const extractYouTube = async (url) => {
       if (pieData.success) {
         const formats = [];
 
-        // Map video qualities
+        // Map video qualities - Enforce server-side muxing so video and audio are always combined
         if (pieData.video_qualities && pieData.video_qualities.length > 0) {
           for (const q of pieData.video_qualities) {
             formats.push({
               formatId: `pie-v-${q.height}`,
               resolution: `${q.height}p HD`,
               ext: "mp4",
-              url: pieData.direct_stream_url || "",
-              requiresServerDownload: !pieData.direct_stream_url,
+              url: "",
+              requiresServerDownload: true,
               qualityValue: String(q.height),
               hasAudio: true,
               hasVideo: true,
@@ -58,15 +58,15 @@ export const extractYouTube = async (url) => {
           }
         }
 
-        // Map audio qualities
+        // Map audio qualities - Enforce server-side conversion to clean MP3
         if (pieData.audio_qualities && pieData.audio_qualities.length > 0) {
           for (const a of pieData.audio_qualities) {
             formats.push({
               formatId: `pie-a-${a.bitrate}`,
               resolution: `${a.bitrate}kbps`,
               ext: "mp3",
-              url: pieData.direct_stream_url || "",
-              requiresServerDownload: !pieData.direct_stream_url,
+              url: "",
+              requiresServerDownload: true,
               qualityValue: String(a.bitrate),
               hasAudio: true,
               hasVideo: false,
