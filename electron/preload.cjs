@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   openFolder: (filePath) => ipcRenderer.invoke("open-folder", filePath),
   openFile: (filePath) => ipcRenderer.invoke("open-file", filePath),
+  openExternal: (url) => ipcRenderer.invoke("open-external", url),
   getVersion: () => ipcRenderer.invoke("get-version"),
   isPortable: () => ipcRenderer.invoke("is-portable"),
   startInAppUpdate: (options) => ipcRenderer.invoke("start-in-app-update", options),
@@ -22,4 +23,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("update-download-progress", listener);
     return () => ipcRenderer.removeListener("update-download-progress", listener);
   },
+  openInstagramLogin: () => ipcRenderer.invoke("open-instagram-login"),
+  getInstagramSession: () => ipcRenderer.invoke("get-instagram-session"),
+  logoutInstagram: () => ipcRenderer.invoke("logout-instagram"),
 });

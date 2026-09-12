@@ -36,3 +36,5 @@ build-artifacts*/
 START-APP.bat
 electron/bin/
 Pie-Video-Downloader-Windows-Portable.exe  
+Pie-Video-Downloader-Windows-Setup.exe
+*.exe

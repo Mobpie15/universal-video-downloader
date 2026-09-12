@@ -22,6 +22,18 @@ export const extractYouTube = async (url) => {
         return desktopResult;
       }
     } catch (desktopErr) {
+      const errMsg = desktopErr.message || "";
+      const lower = errMsg.toLowerCase();
+      // If the error is an explicit playability failure, fail fast with an accurate explanation
+      if (
+        lower.includes("unavailable") ||
+        lower.includes("private") ||
+        lower.includes("deleted") ||
+        lower.includes("age-restricted") ||
+        lower.includes("blocked")
+      ) {
+        throw desktopErr;
+      }
       console.warn("Desktop native extraction fell back to cloud API:", desktopErr.message);
     }
   }
@@ -43,17 +55,21 @@ export const extractYouTube = async (url) => {
         // Map video qualities - Enforce server-side muxing so video and audio are always combined
         if (pieData.video_qualities && pieData.video_qualities.length > 0) {
           for (const q of pieData.video_qualities) {
+            const h = parseInt(q.height, 10) || 1080;
+            const is4K = h >= 2160;
+            const is2K = h >= 1440 && h < 2160;
+            const resLabel = is4K ? "4K Ultra HD (2160p)" : is2K ? "2K Quad HD (1440p)" : `${h}p HD`;
             formats.push({
-              formatId: `pie-v-${q.height}`,
-              resolution: `${q.height}p HD`,
+              formatId: `pie-v-${h}`,
+              resolution: resLabel,
               ext: "mp4",
               url: "",
               requiresServerDownload: true,
-              qualityValue: String(q.height),
+              qualityValue: String(h),
               hasAudio: true,
               hasVideo: true,
               type: "video",
-              label: q.label || `${q.height}p HD (Universal MP4)`,
+              label: q.label || `${resLabel} (Universal MP4)`,
             });
           }
         }
@@ -71,7 +87,7 @@ export const extractYouTube = async (url) => {
               hasAudio: true,
               hasVideo: false,
               type: "audio",
-              label: a.label || `${a.bitrate} kbps (MP3 Audio)`,
+              label: a.label || `Studio MP3 Audio (${a.bitrate} kbps)`,
             });
           }
         }
@@ -87,9 +103,17 @@ export const extractYouTube = async (url) => {
             formats,
           };
         }
+      } else if (pieData.error) {
+        const lower = pieData.error.toLowerCase();
+        if (lower.includes("unavailable") || lower.includes("private") || lower.includes("deleted")) {
+          throw new Error(pieData.error);
+        }
       }
     }
   } catch (err) {
+    if (err.message && (err.message.includes("unavailable") || err.message.includes("private"))) {
+      throw err;
+    }
     console.warn("PieTools cloud API attempt timed out or failed:", err.message);
   }
 
@@ -114,8 +138,20 @@ export const extractYouTube = async (url) => {
         thumbnail: thumb,
         formats: [
           {
+            formatId: "yt-2160",
+            resolution: "4K Ultra HD (2160p)",
+            ext: "mp4",
+            url: "",
+            requiresServerDownload: true,
+            qualityValue: "2160",
+            hasAudio: true,
+            hasVideo: true,
+            type: "video",
+            label: "4K Ultra HD (2160p Universal MP4)",
+          },
+          {
             formatId: "yt-1080",
-            resolution: "1080p HD",
+            resolution: "1080p Full HD",
             ext: "mp4",
             url: "",
             requiresServerDownload: true,
@@ -159,7 +195,7 @@ export const extractYouTube = async (url) => {
             hasAudio: true,
             hasVideo: false,
             type: "audio",
-            label: "Ultra Studio Audio (320 kbps MP3)",
+            label: "Studio MP3 Audio (320 kbps)",
           },
         ],
       };
@@ -169,7 +205,8 @@ export const extractYouTube = async (url) => {
   }
 
   throw new Error(
-    "Unable to resolve YouTube video. Please ensure the link is public and accessible."
+    "This YouTube video is unavailable, private, or has been removed from YouTube. Please verify the URL or try an active video link."
   );
 };
+
 

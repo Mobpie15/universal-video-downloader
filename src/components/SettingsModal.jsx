@@ -8,6 +8,8 @@ import {
   CheckIcon,
   ExternalLinkIcon,
   SparklesIcon,
+  GlobeIcon,
+  CameraIcon,
 } from "./icons/Icons.jsx";
 import { getPlatformName, showToast } from "../engine/nativeBridge.js";
 import { checkForUpdates, CURRENT_VERSION } from "../engine/updater.js";
@@ -19,6 +21,43 @@ export const SettingsModal = ({ isOpen, onClose }) => {
   const [updateProgress, setUpdateProgress] = useState({ percent: 0, speedMBps: "0.0", transferredMB: "0", totalMB: "0" });
   const [isRestarting, setIsRestarting] = useState(false);
   const [updateError, setUpdateError] = useState(null);
+  const [igConnected, setIgConnected] = useState(false);
+  const [isConnectingIg, setIsConnectingIg] = useState(false);
+
+  React.useEffect(() => {
+    if (window.electronAPI?.getInstagramSession) {
+      window.electronAPI.getInstagramSession().then((res) => {
+        setIgConnected(Boolean(res?.connected));
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
+  const handleConnectInstagram = async () => {
+    if (window.electronAPI?.openInstagramLogin) {
+      setIsConnectingIg(true);
+      try {
+        const res = await window.electronAPI.openInstagramLogin();
+        if (res && res.success) {
+          setIgConnected(true);
+          showToast("Instagram connected successfully!");
+        }
+      } catch (e) {
+        showToast("Login dismissed");
+      } finally {
+        setIsConnectingIg(false);
+      }
+    }
+  };
+
+  const handleDisconnectInstagram = async () => {
+    if (window.electronAPI?.logoutInstagram) {
+      try {
+        await window.electronAPI.logoutInstagram();
+        setIgConnected(false);
+        showToast("Instagram disconnected");
+      } catch (e) {}
+    }
+  };
 
   React.useEffect(() => {
     if (window.electronAPI?.onUpdateProgress) {
@@ -304,8 +343,38 @@ export const SettingsModal = ({ isOpen, onClose }) => {
                     )}
 
                     {updateError && (
-                      <div style={{ color: "var(--accent-red)", fontSize: "0.72rem", marginTop: "8px" }}>
-                        {updateError}
+                      <div style={{ marginTop: "8px" }}>
+                        <div style={{ color: "var(--accent-red)", fontSize: "0.72rem", marginBottom: "6px" }}>
+                          {updateError}
+                        </div>
+                        {updateInfo?.releasesPage && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.electronAPI?.openExternal) {
+                                window.electronAPI.openExternal(updateInfo.releasesPage);
+                              } else {
+                                window.open(updateInfo.releasesPage, "_system");
+                              }
+                            }}
+                            style={{
+                              padding: "6px 12px",
+                              borderRadius: "7px",
+                              background: "rgba(255, 255, 255, 0.08)",
+                              color: "#FFFFFF",
+                              border: "1px solid rgba(255, 255, 255, 0.15)",
+                              fontSize: "0.72rem",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <GlobeIcon size={13} />
+                            <span>Open GitHub Releases Page</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -342,6 +411,90 @@ export const SettingsModal = ({ isOpen, onClose }) => {
               </div>
             )}
           </div>
+
+          {/* INSTAGRAM ACCOUNT INTEGRATION TILE */}
+          {isElectron && (
+            <div
+              style={{
+                background: "var(--bg-input)",
+                borderRadius: "14px",
+                padding: "14px",
+                border: "1px solid rgba(225, 48, 108, 0.25)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <CameraIcon size={18} style={{ color: "#E1306C" }} />
+                  <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>Instagram Session</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    padding: "2px 8px",
+                    borderRadius: "6px",
+                    background: igConnected ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.06)",
+                    color: igConnected ? "var(--accent-green)" : "var(--text-tertiary)",
+                    border: `1px solid ${igConnected ? "rgba(16, 185, 129, 0.3)" : "rgba(255, 255, 255, 0.1)"}`,
+                    fontWeight: 700,
+                  }}
+                >
+                  {igConnected ? "Connected" : "Not Connected"}
+                </span>
+              </div>
+
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.78rem", margin: "0 0 10px 0", lineHeight: 1.4 }}>
+                Connect your Instagram account to download private stories, close friends' reels, and user highlights safely without third-party servers.
+              </p>
+
+              {igConnected ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                  <span style={{ fontSize: "0.74rem", color: "var(--accent-green)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <CheckIcon size={13} /> Session Active (Stories &amp; Highlights Unlocked)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDisconnectInstagram}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "8px",
+                      background: "rgba(239, 68, 68, 0.15)",
+                      border: "1px solid rgba(239, 68, 68, 0.3)",
+                      color: "var(--accent-red)",
+                      fontSize: "0.74rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConnectInstagram}
+                  disabled={isConnectingIg}
+                  style={{
+                    width: "100%",
+                    padding: "9px 14px",
+                    borderRadius: "10px",
+                    background: "linear-gradient(45deg, #f09433 0%, #dc2743 50%, #bc1888 100%)",
+                    color: "#FFF",
+                    fontWeight: 700,
+                    fontSize: "0.82rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    cursor: isConnectingIg ? "not-allowed" : "pointer",
+                    border: "none",
+                    boxShadow: "0 3px 12px rgba(225, 48, 108, 0.3)",
+                  }}
+                >
+                  <span>{isConnectingIg ? "Opening Login Window..." : "Connect Instagram (In-App Login)"}</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Save Location Tile */}
           <div

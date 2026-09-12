@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, shell, ipcMain, dialog, session } from "electron";
 import path from "path";
 import fs from "fs";
 import { spawn, spawnSync, execSync } from "child_process";
@@ -243,26 +243,337 @@ function createWindow() {
   });
 }
 
+function getFfprobePath() {
+  const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+  if (isDev) {
+    const devPath = path.join(__dirname, "bin", "ffprobe.exe");
+    if (fs.existsSync(devPath)) return devPath;
+    const parentPath = path.join(__dirname, "..", "electron", "bin", "ffprobe.exe");
+    if (fs.existsSync(parentPath)) return parentPath;
+  }
+  const ffmpegDir = getFfmpegDir();
+  if (ffmpegDir && fs.existsSync(path.join(ffmpegDir, "ffprobe.exe"))) {
+    return path.join(ffmpegDir, "ffprobe.exe");
+  }
+  const known = [
+    path.join(process.resourcesPath, "bin", "ffprobe.exe"),
+    path.join(app.getPath("userData"), "bin", "ffprobe.exe"),
+    "C:\\Users\\mobpi\\Documents\\WorkSpace\\WS-1\\100tools\\backend\\ffmpeg-9.0-essentials_build\\bin\\ffprobe.exe",
+  ];
+  for (const p of known) {
+    if (fs.existsSync(p)) return p;
+  }
+  return "ffprobe";
+}
+
+// ── Native Instagram Profile & DP Extractor (Zero-Login Chromium Background Engine) ──
+async function extractInstagramProfile(input) {
+  let cleanUser = input
+    .trim()
+    .replace(/^@/, "")
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//, "")
+    .split("/")[0]
+    .split("?")[0]
+    .trim();
+  if (!cleanUser) throw new Error("Invalid Instagram username");
+
+  const targetUrl = `https://www.instagram.com/${cleanUser}/`;
+  const bgWin = new BrowserWindow({
+    show: false,
+    width: 1280,
+    height: 900,
+    webPreferences: {
+      offscreen: false,
+      contextIsolation: false,
+    },
+  });
+
+  bgWin.webContents.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+  );
+
+  try {
+    await bgWin.loadURL(targetUrl);
+    await new Promise((r) => setTimeout(r, 3000));
+
+    const profileData = await bgWin.webContents.executeJavaScript(`
+      (async () => {
+        let avatarUrl = "";
+        let fullName = "";
+        let biography = "";
+        let recentPosts = [];
+
+        // Strategy 1: Same-origin Instagram Web Profile API call
+        try {
+          const apiRes = await fetch('/api/v1/users/web_profile_info/?username=${cleanUser}', {
+            headers: {
+              'X-IG-App-ID': '936619743392459',
+              'Accept': '*/*'
+            }
+          });
+          if (apiRes.ok) {
+            const apiJson = await apiRes.json();
+            const u = apiJson.data?.user;
+            if (u) {
+              avatarUrl = u.profile_pic_url_hd || u.profile_pic_url || "";
+              fullName = u.full_name || u.username || "";
+              biography = u.biography || "";
+              const edges = u.edge_owner_to_timeline_media?.edges || [];
+              for (const edge of edges.slice(0, 8)) {
+                const node = edge.node;
+                const postUrl = node?.display_url || node?.video_url;
+                if (postUrl) {
+                  recentPosts.push({
+                    url: postUrl,
+                    isVideo: Boolean(node.is_video),
+                    thumbnail: node.display_url
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {}
+
+        // Strategy 2: DOM Head & Image Inspection
+        if (!avatarUrl) {
+          const ogImg = document.querySelector('meta[property="og:image"]')?.content;
+          const headerImg = document.querySelector('header img')?.src ||
+                            document.querySelector('img[alt*="profile picture" i]')?.src ||
+                            document.querySelector('img[alt*="profile photo" i]')?.src;
+          const ogTitle = document.querySelector('meta[property="og:title"]')?.content || document.title;
+          const ogDesc = document.querySelector('meta[property="og:description"]')?.content;
+
+          avatarUrl = headerImg || ogImg || "";
+          fullName = ogTitle || "@${cleanUser}";
+          biography = ogDesc || "";
+
+          const allImgs = Array.from(document.querySelectorAll('img'))
+            .map(i => i.src)
+            .filter(s => s && (s.includes('cdninstagram') || s.includes('fbcdn')));
+          if (!avatarUrl && allImgs.length > 0) {
+            avatarUrl = allImgs[0];
+          }
+        }
+
+        return { avatarUrl, fullName, biography, recentPosts };
+      })()
+    `);
+
+    const avatar = profileData?.avatarUrl || "";
+    if (!avatar) {
+      throw new Error(`Could not find profile for @${cleanUser}. Please check if the username is spelled correctly.`);
+    }
+
+    const formats = [];
+    formats.push({
+      formatId: `ig-dp-${cleanUser}`,
+      resolution: "1080p Full HD Avatar",
+      ext: "jpg",
+      url: avatar,
+      isImage: true,
+      hasVideo: false,
+      hasAudio: false,
+      type: "image",
+      label: "Download Full HD Profile Picture (1080x1080 JPG)",
+    });
+
+    if (profileData.recentPosts && profileData.recentPosts.length > 0) {
+      profileData.recentPosts.forEach((post, idx) => {
+        formats.push({
+          formatId: `ig-recent-${idx + 1}`,
+          resolution: post.isVideo ? "Recent Video (MP4)" : "Recent Photo (JPG)",
+          ext: post.isVideo ? "mp4" : "jpg",
+          url: post.url,
+          isImage: !post.isVideo,
+          hasVideo: post.isVideo,
+          hasAudio: post.isVideo,
+          type: post.isVideo ? "video" : "image",
+          label: `Recent Post #${idx + 1} (${post.isVideo ? "MP4 Video" : "Full HD JPG"})`,
+        });
+      });
+    }
+
+    return {
+      platform: "instagram",
+      subType: "dp",
+      id: `ig-dp-${cleanUser}`,
+      title: `${profileData.fullName || `@${cleanUser}`} - Instagram Profile DP`,
+      author: `@${cleanUser}`,
+      description: profileData.biography || "",
+      duration: 0,
+      thumbnail: avatar,
+      formats,
+    };
+  } finally {
+    try {
+      bgWin.destroy();
+    } catch (e) {}
+  }
+}
+
+// ── In-App Instagram Session Bridge (For Stories, Highlights & Private Content) ──
+let igLoginWindow = null;
+ipcMain.handle("open-instagram-login", async () => {
+  return new Promise((resolve) => {
+    if (igLoginWindow && !igLoginWindow.isDestroyed()) {
+      igLoginWindow.focus();
+      return resolve({ status: "already_open" });
+    }
+
+    igLoginWindow = new BrowserWindow({
+      width: 520,
+      height: 740,
+      title: "Connect Instagram — Pie Video Downloader",
+      autoHideMenuBar: true,
+      backgroundColor: "#0A0E17",
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    igLoginWindow.loadURL("https://www.instagram.com/accounts/login/");
+
+    let pollTimer = null;
+
+    const checkAndSaveCookies = async () => {
+      try {
+        if (!igLoginWindow || igLoginWindow.isDestroyed()) return false;
+        const cookies = await igLoginWindow.webContents.session.cookies.get({ domain: ".instagram.com" });
+        const hasSession = cookies.some((c) => c.name === "sessionid" && c.value);
+        if (hasSession) {
+          if (pollTimer) clearInterval(pollTimer);
+          const cookiePath = path.join(app.getPath("userData"), "ig_cookies.txt");
+          let netscapeStr = "# Netscape HTTP Cookie File\n# Generated by Pie Video Downloader\n\n";
+          for (const c of cookies) {
+            let dom = c.domain || ".instagram.com";
+            if (!dom.startsWith(".")) dom = "." + dom;
+            const isSub = dom.startsWith(".") ? "TRUE" : "FALSE";
+            const isSec = c.secure ? "TRUE" : "FALSE";
+            const exp = Math.round(c.expirationDate || Date.now() / 1000 + 86400 * 90);
+            netscapeStr += `${dom}\t${isSub}\t${c.path || "/"}\t${isSec}\t${exp}\t${c.name}\t${c.value}\n`;
+          }
+          fs.writeFileSync(cookiePath, netscapeStr, "utf8");
+
+          const userCookie = cookies.find((c) => c.name === "ds_user_id");
+          try {
+            igLoginWindow.close();
+          } catch (e) {}
+          igLoginWindow = null;
+          resolve({ success: true, userId: userCookie ? userCookie.value : "Connected" });
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    };
+
+    pollTimer = setInterval(async () => {
+      await checkAndSaveCookies();
+    }, 1000);
+
+    igLoginWindow.webContents.on("did-navigate", async () => {
+      await checkAndSaveCookies();
+    });
+
+    igLoginWindow.on("closed", async () => {
+      if (pollTimer) clearInterval(pollTimer);
+      igLoginWindow = null;
+      try {
+        const cookiePath = path.join(app.getPath("userData"), "ig_cookies.txt");
+        const hasCookieFile = fs.existsSync(cookiePath) && fs.statSync(cookiePath).size > 20;
+        resolve({ success: hasCookieFile });
+      } catch (e) {
+        resolve({ success: false });
+      }
+    });
+  });
+});
+
+ipcMain.handle("get-instagram-session", async () => {
+  try {
+    const cookiePath = path.join(app.getPath("userData"), "ig_cookies.txt");
+    const hasCookieFile = fs.existsSync(cookiePath) && fs.statSync(cookiePath).size > 20;
+    return { connected: hasCookieFile };
+  } catch (e) {
+    return { connected: false };
+  }
+});
+
+ipcMain.handle("logout-instagram", async () => {
+  try {
+    const cookiePath = path.join(app.getPath("userData"), "ig_cookies.txt");
+    if (fs.existsSync(cookiePath)) fs.unlinkSync(cookiePath);
+    if (session && session.defaultSession) {
+      await session.defaultSession.clearStorageData({ storages: ["cookies"] });
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+
 // IPC Handler: Native Media Extraction
 ipcMain.handle("extract-media", async (event, url) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    if (!url || typeof url !== "string" || !url.trim()) {
+      return reject(new Error("Please provide a valid video or profile URL."));
+    }
+    const cleanUrl = url.trim();
+
+    // 1. Detect Instagram Profile / DP lookup
+    const isIgProfile =
+      cleanUrl.startsWith("@") ||
+      (!cleanUrl.includes("/reel/") &&
+        !cleanUrl.includes("/p/") &&
+        !cleanUrl.includes("/stories/") &&
+        !cleanUrl.includes("/tv/") &&
+        (cleanUrl.includes("instagram.com/") || (!cleanUrl.includes(".") && !cleanUrl.includes("/"))));
+
+    if (isIgProfile) {
+      try {
+        const dpResult = await extractInstagramProfile(cleanUrl);
+        return resolve(dpResult);
+      } catch (dpErr) {
+        console.warn("Offscreen DP extraction fallback to yt-dlp:", dpErr.message);
+      }
+    }
+
     const binPath = getYtDlpPath();
     const nodePath = getNodePath();
+    const isStoriesOrHighlights = cleanUrl.includes("/stories/") || cleanUrl.includes("/highlights/");
     const args = [
       "--dump-single-json",
       "--no-warnings",
       "--skip-download",
-      "--no-playlist",
-      "--socket-timeout", "12",
+      "--socket-timeout", "18",
       "--extractor-retries", "2",
       "--retry-sleep", "extractor:2",
     ];
+
+    if (!isStoriesOrHighlights) {
+      args.push("--no-playlist");
+    }
 
     if (nodePath && nodePath !== "node") {
       args.push("--js-runtimes", `node:${nodePath}`);
     } else {
       args.push("--js-runtimes", "node");
     }
+
+    // Cookie integration: use saved Instagram session if present
+    const igCookiePath = path.join(app.getPath("userData"), "ig_cookies.txt");
+    if (fs.existsSync(igCookiePath) && fs.statSync(igCookiePath).size > 20) {
+      args.push("--cookies", igCookiePath);
+    }
+
+    // YouTube multi-client fallback strategies
+    if (cleanUrl.includes("youtube.com") || cleanUrl.includes("youtu.be")) {
+      args.push("--extractor-args", "youtube:player_client=ios,android,tv,web");
+    }
+
+    args.push(cleanUrl);
+
     const ffmpegDir = getFfmpegDir();
     const proc = spawn(binPath, args, {
       env: {
@@ -280,46 +591,141 @@ ipcMain.handle("extract-media", async (event, url) => {
       reject(new Error(`Failed to execute native media extractor: ${err.message}`));
     });
 
-    proc.on("close", (code) => {
+    proc.on("close", async (code) => {
       if (code !== 0 && !stdout.trim()) {
         const errText = stderr.trim();
-        if (errText.includes("Instagram sent an empty media response") || errText.includes("accessible in your browser without being logged-in")) {
-          return reject(new Error("Instagram is requiring login credentials for this Reel. Please check the link in your browser or try another video."));
+        if (
+          errText.includes("This video is unavailable") ||
+          errText.includes("Video unavailable") ||
+          errText.includes("not found")
+        ) {
+          return reject(
+            new Error(
+              "This YouTube video is unavailable, private, or has been removed from YouTube. Please verify the link or try another video."
+            )
+          );
+        }
+        if (
+          errText.includes("Instagram sent an empty media response") ||
+          errText.includes("API is not granting access") ||
+          errText.includes("accessible in your browser without being logged-in")
+        ) {
+          // If profile/dp, try offscreen extraction
+          if (cleanUrl.includes("instagram.com")) {
+            try {
+              const fbResult = await extractInstagramProfile(cleanUrl);
+              return resolve(fbResult);
+            } catch (e) {}
+          }
+          return reject(
+            new Error(
+              "Instagram is requiring login credentials for this content. You can click 'Connect Instagram' in Settings to download private stories and reels."
+            )
+          );
         }
         if (errText.includes("Private video") || errText.includes("this video is private")) {
           return reject(new Error("This video is set to private by the creator and cannot be accessed."));
         }
-        return reject(new Error(errText || "Failed to analyze video URL."));
+        return reject(new Error(errText || "Failed to analyze media URL."));
       }
 
       try {
         const data = JSON.parse(stdout.trim());
         const formats = [];
+
+        // 0. Instagram Stories, Highlights & Multi-Item Collection Support
+        if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+          const validEntries = data.entries.filter(Boolean);
+          validEntries.forEach((entry, idx) => {
+            const entryFormats = entry.formats || [];
+            const v = entryFormats.filter((f) => f.vcodec !== "none" && f.url).pop();
+            const h = v?.height || entry.height || 1080;
+            const resLabel = h >= 2160 ? "4K Ultra HD" : h >= 1440 ? "2K Quad HD" : `${h}p HD`;
+
+            if (v || (entry.url && (entry.url.includes(".mp4") || entry.ext === "mp4"))) {
+              const videoUrl = v?.url || entry.url;
+              formats.push({
+                formatId: `story-video-${entry.id || idx + 1}`,
+                resolution: `Story #${idx + 1} (${resLabel})`,
+                ext: "mp4",
+                url: videoUrl,
+                filesize: v?.filesize || entry.filesize || null,
+                hasAudio: true,
+                hasVideo: true,
+                type: "video",
+                label: `Story / Highlight #${idx + 1} (${resLabel} Video)`,
+              });
+
+              // Studio MP3 Audio for each story
+              formats.push({
+                formatId: `story-audio-${entry.id || idx + 1}`,
+                resolution: "320kbps",
+                ext: "mp3",
+                url: videoUrl,
+                filesize: null,
+                hasAudio: true,
+                hasVideo: false,
+                type: "audio",
+                label: `Story / Highlight #${idx + 1} MP3 Audio (320 kbps)`,
+              });
+            } else {
+              // Photo Story
+              const imgUrl = entry.url || entry.thumbnail || (entry.thumbnails?.length ? entry.thumbnails[entry.thumbnails.length - 1].url : "");
+              if (imgUrl) {
+                formats.push({
+                  formatId: `story-img-${entry.id || idx + 1}`,
+                  resolution: `Photo Story #${idx + 1}`,
+                  ext: "jpg",
+                  url: imgUrl,
+                  isImage: true,
+                  hasAudio: false,
+                  hasVideo: false,
+                  type: "image",
+                  label: `Story Photo #${idx + 1} (Full HD JPG)`,
+                });
+              }
+            }
+          });
+
+          if (formats.length > 0) {
+            return resolve({
+              platform: data.extractor_key?.toLowerCase() || "instagram",
+              id: data.id || `collection-${Date.now()}`,
+              title: data.title || "Instagram Stories & Highlights",
+              author: data.uploader || data.channel || `@${cleanUrl.split("/")[3] || "instagram"}`,
+              duration: 0,
+              thumbnail: validEntries[0]?.thumbnail || formats[0]?.url || "",
+              formats,
+            });
+          }
+        }
+
         const rawFormats = data.formats || [];
 
         // 1. Direct Combined Video + Audio formats
         for (const f of rawFormats) {
           if (f.vcodec !== "none" && f.acodec !== "none" && f.url) {
+            const h = f.height || 0;
+            const resLabel = h >= 2160 ? "4K Ultra HD (2160p)" : h >= 1440 ? "2K Quad HD (1440p)" : h ? `${h}p HD` : f.resolution || "Standard";
             formats.push({
               formatId: String(f.format_id),
-              resolution: f.resolution || (f.height ? `${f.height}p` : "Standard"),
+              resolution: resLabel,
               ext: f.ext || "mp4",
               url: f.url,
               filesize: f.filesize || f.filesize_approx || null,
               hasAudio: true,
               hasVideo: true,
               type: "video",
-              label: `${f.resolution || (f.height ? `${f.height}p` : "Standard")} (${(f.ext || "mp4").toUpperCase()} Video + Audio)`,
+              label: `${resLabel} (Universal MP4 + Audio)`,
             });
           }
         }
 
-        // 2. High-Def Progressive / Adaptive Video Streams (1080p, 720p, 480p, 360p)
+        // 2. High-Def Progressive / Adaptive Video Streams (4K 2160p, 2K 1440p, 1080p, 720p, 480p, 360p)
         const targetHeights = [2160, 1440, 1080, 720, 480, 360];
         const isDirectHttp = (f) => f && f.url && (!f.protocol || f.protocol.startsWith("http")) && !f.url.includes(".m3u8") && !f.url.includes("manifest");
 
         for (const h of targetHeights) {
-          // Prefer HTTP DASH MP4/WEBM streams over m3u8 playlists
           let matching = rawFormats.find(
             (f) => f.height === h && (f.ext === "mp4" || f.ext === "webm") && isDirectHttp(f)
           );
@@ -329,21 +735,24 @@ ipcMain.handle("extract-media", async (event, url) => {
             );
           }
           if (matching && !formats.some((item) => item.resolution?.includes(`${h}p`))) {
+            const is4K = h >= 2160;
+            const is2K = h >= 1440 && h < 2160;
+            const resLabel = is4K ? "4K Ultra HD (2160p)" : is2K ? "2K Quad HD (1440p)" : `${h}p HD`;
             formats.push({
               formatId: String(matching.format_id),
-              resolution: `${h}p HD`,
-              ext: matching.ext || "mp4",
+              resolution: resLabel,
+              ext: "mp4",
               url: matching.url,
               filesize: matching.filesize || matching.filesize_approx || null,
-              hasAudio: true, // Native yt-dlp will automatically mux audio with bestaudio during download
+              hasAudio: true,
               hasVideo: true,
               type: "video",
-              label: `${h}p HD Video (${matching.ext ? matching.ext.toUpperCase() : "MP4"})`,
+              label: `${resLabel} (${is4K ? "UHD 4K" : is2K ? "QHD 2K" : "MP4"} Universal Video + Audio)`,
             });
           }
         }
 
-        // 3. Audio Streams
+        // 3. Studio Audio Streams
         const audioStreams = rawFormats.filter(
           (f) => f.acodec !== "none" && f.vcodec === "none" && f.url && isDirectHttp(f)
         );
@@ -353,14 +762,46 @@ ipcMain.handle("extract-media", async (event, url) => {
           formats.push({
             formatId: String(a.format_id),
             resolution: `${bitrate}kbps`,
-            ext: a.ext || "m4a",
+            ext: "mp3",
             url: a.url,
             filesize: a.filesize || a.filesize_approx || null,
             hasAudio: true,
             hasVideo: false,
             type: "audio",
-            label: `Audio Only (${bitrate} kbps ${(a.ext || "m4a").toUpperCase()})`,
+            label: `Studio MP3 Audio (${bitrate} kbps)`,
           });
+        }
+
+        // 4. GUARANTEE: Universal Studio MP3 Audio format for EVERY video!
+        if (formats.some((f) => f.hasVideo) && !formats.some((f) => f.type === "audio")) {
+          const fallbackUrl = formats[0]?.url || "";
+          formats.push({
+            formatId: "native-audio-320",
+            resolution: "320kbps",
+            ext: "mp3",
+            url: fallbackUrl,
+            filesize: null,
+            hasAudio: true,
+            hasVideo: false,
+            type: "audio",
+            label: "Studio MP3 Audio (320 kbps)",
+          });
+        // 5. Fallback for photo posts or carousels with no video streams
+        if (formats.length === 0) {
+          const imgUrl = data.url || data.thumbnail || (data.thumbnails?.length ? data.thumbnails[data.thumbnails.length - 1].url : "");
+          if (imgUrl) {
+            formats.push({
+              formatId: "photo-orig",
+              resolution: "Full-HD Photo",
+              ext: "jpg",
+              url: imgUrl,
+              isImage: true,
+              hasVideo: false,
+              hasAudio: false,
+              type: "image",
+              label: "Download Full-HD Photo (1080p JPG)",
+            });
+          }
         }
 
         resolve({
@@ -384,14 +825,61 @@ const activeProcesses = new Map();
 
 // IPC Handler: Native Media Download & Muxing
 ipcMain.handle("download-media", async (event, options) => {
-  const { id, url, formatId, ext, isAudio, title, resolution } = options;
+  const { id, url, formatId, ext, isAudio, title, resolution, startTime, endTime, isImage } = options;
+
+  // Direct Image Download (For Instagram Profile DP and Carousel Photos)
+  if (isImage || ext === "jpg" || ext === "jpeg" || ext === "png" || ext === "webp") {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const downloadsDir = app.getPath("downloads");
+        const safeTitle = (title || "photo").replace(/[\\/*?:"<>|]/g, "_").slice(0, 45).trim();
+        const destPath = path.join(downloadsDir, `${safeTitle}_${Date.now()}.${ext || "jpg"}`);
+
+        event.sender.send(`download-progress-${id}`, {
+          percent: 20,
+          speedMBps: "fetching",
+          etaSeconds: "...",
+        });
+
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            "Referer": "https://www.instagram.com/",
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+          },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const arrayBuf = await res.arrayBuffer();
+
+        event.sender.send(`download-progress-${id}`, {
+          percent: 85,
+          speedMBps: "saving",
+          etaSeconds: "...",
+        });
+
+        fs.writeFileSync(destPath, Buffer.from(arrayBuf));
+
+        event.sender.send(`download-progress-${id}`, {
+          percent: 100,
+          speedMBps: "done",
+          etaSeconds: 0,
+        });
+
+        resolve({ success: true, path: destPath, fileName: path.basename(destPath) });
+      } catch (err) {
+        reject(new Error(`Failed to download image: ${err.message}`));
+      }
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const binPath = getYtDlpPath();
     const nodePath = getNodePath();
     const ffmpegDir = getFfmpegDir();
     const downloadsDir = app.getPath("downloads");
     const safeTitle = (title || "video").replace(/[\\/*?:"<>|]/g, "_").slice(0, 45).trim();
-    const outputTemplate = path.join(downloadsDir, `${safeTitle}_${resolution || "HD"}.%(ext)s`);
+    const cleanRes = (resolution || "HD").replace(/[^a-zA-Z0-9]/g, "_");
+    const outputTemplate = path.join(downloadsDir, `${safeTitle}_${cleanRes}.%(ext)s`);
 
     const args = [
       "--no-warnings",
@@ -411,12 +899,18 @@ ipcMain.handle("download-media", async (event, options) => {
       args.push("--js-runtimes", "node");
     }
 
+    // Cookie integration
+    const igCookiePath = path.join(app.getPath("userData"), "ig_cookies.txt");
+    if (fs.existsSync(igCookiePath) && fs.statSync(igCookiePath).size > 20) {
+      args.push("--cookies", igCookiePath);
+    }
+
     if (ffmpegDir && fs.existsSync(path.join(ffmpegDir, "ffmpeg.exe"))) {
       args.push("--ffmpeg-location", ffmpegDir);
     }
 
     if (isAudio || ext === "mp3") {
-      args.push("-x", "--audio-format", "mp3");
+      args.push("-x", "--audio-format", "mp3", "--audio-quality", "320k");
       args.push("-f", "bestaudio[protocol^=http][ext=m4a]/bestaudio[protocol^=http]/bestaudio/best");
     } else {
       let targetHeight = 1080;
@@ -425,13 +919,31 @@ ipcMain.handle("download-media", async (event, options) => {
         if (matchH) targetHeight = parseInt(matchH[1], 10);
       }
 
-      args.push(
-        "-f",
-        `bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}][ext=mp4]+bestaudio[acodec^=mp4a]/bestvideo[height<=${targetHeight}]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}]+bestaudio/best`
-      );
-      args.push("--format-sort", "vcodec:avc,acodec:m4a,res,ext:mp4:m4a");
+      // 4K (2160p) & 2K (1440p) vs 1080p/720p Handling
+      if (targetHeight > 1080) {
+        args.push(
+          "-f",
+          `bestvideo[height<=${targetHeight}]+bestaudio[acodec^=mp4a]/bestvideo[height<=${targetHeight}]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}]+bestaudio/best[height<=${targetHeight}]/best`
+        );
+      } else {
+        args.push(
+          "-f",
+          `bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[acodec^=mp4a]/bestvideo[height<=${targetHeight}][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}][ext=mp4]+bestaudio[acodec^=mp4a]/bestvideo[height<=${targetHeight}]+bestaudio[ext=m4a]/bestvideo[height<=${targetHeight}]+bestaudio/best[height<=${targetHeight}]/best`
+        );
+        args.push("--format-sort", "vcodec:avc,acodec:m4a,res,ext:mp4:m4a");
+      }
+
       args.push("--merge-output-format", "mp4");
-      args.push("--postprocessor-args", "Merger:-c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2");
+      args.push("--postprocessor-args", "Merger:-c:a aac -b:a 192k -ar 44100 -ac 2");
+    }
+
+    // Video Trimming Feature: Download only selected time section with 100% AV sync
+    const hasTrim = Boolean(startTime && startTime !== "00:00" && startTime !== "0") || Boolean(endTime && endTime !== "00:00" && endTime !== "");
+    if (hasTrim) {
+      const s = (startTime && startTime !== "00:00") ? startTime : "00:00";
+      const e = (endTime && endTime !== "00:00") ? endTime : "";
+      args.push("--download-sections", `*${s}-${e}`);
+      args.push("--force-keyframes-at-cuts");
     }
 
     args.push("--progress-template", "PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s");
@@ -565,50 +1077,59 @@ ipcMain.handle("download-media", async (event, options) => {
             } catch (e) {}
           }
         }
-        // 100% Universal Audio Codec Guard:
-        // Probe final MP4 file to guarantee audio is standard universal AAC, never Opus/Vorbis
-        if (finalPath && fs.existsSync(finalPath) && !isAudio && ffmpegDir) {
+        // 100% Universal Audio Codec & Synchronization Guard:
+        // Probe final MP4 file to guarantee audio is universal AAC and in perfect sync with video
+        if (finalPath && fs.existsSync(finalPath) && !isAudio) {
           try {
-            const probeBin = path.join(ffmpegDir, "ffprobe.exe");
-            const ffmpegBin = path.join(ffmpegDir, "ffmpeg.exe");
-            if (fs.existsSync(probeBin) && fs.existsSync(ffmpegBin)) {
-              const probeRes = spawnSync(probeBin, [
-                "-v", "error",
-                "-show_entries", "stream=codec_type,codec_name",
-                "-of", "json",
-                finalPath,
-              ], { timeout: 15000 });
+            const probeBin = getFfprobePath();
+            const ffmpegBin = (ffmpegDir && fs.existsSync(path.join(ffmpegDir, "ffmpeg.exe")))
+              ? path.join(ffmpegDir, "ffmpeg.exe")
+              : (fs.existsSync(path.join(__dirname, "bin", "ffmpeg.exe")) ? path.join(__dirname, "bin", "ffmpeg.exe") : "ffmpeg");
 
-              if (probeRes.status === 0 && probeRes.stdout) {
-                const probeData = JSON.parse(probeRes.stdout.toString());
-                const audioStream = probeData.streams?.find((s) => s.codec_type === "audio");
-                const aName = (audioStream?.codec_name || "").toLowerCase();
+            const probeRes = spawnSync(probeBin, [
+              "-v", "error",
+              "-show_entries", "stream=codec_type,codec_name,start_time,duration",
+              "-of", "json",
+              finalPath,
+            ], { timeout: 15000 });
 
-                // If audio codec is not standard aac (e.g. opus, vorbis) or if missing:
-                if (aName && aName !== "aac") {
-                  console.log(`[Audio Guard] Converting non-universal audio (${aName}) to universal AAC in:`, finalPath);
-                  const dir = path.dirname(finalPath);
-                  const ext = path.extname(finalPath);
-                  const base = path.basename(finalPath, ext);
-                  const tempFixed = path.join(dir, `${base}_aac_temp${ext}`);
+            if (probeRes.status === 0 && probeRes.stdout) {
+              const probeData = JSON.parse(probeRes.stdout.toString());
+              const audioStream = probeData.streams?.find((s) => s.codec_type === "audio");
+              const videoStream = probeData.streams?.find((s) => s.codec_type === "video");
+              const aName = (audioStream?.codec_name || "").toLowerCase();
 
-                  const fixRes = spawnSync(ffmpegBin, [
-                    "-y",
-                    "-i", finalPath,
-                    "-c:v", "copy",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    "-ar", "44100",
-                    "-ac", "2",
-                    "-movflags", "+faststart",
-                    tempFixed,
-                  ], { timeout: 300000 });
+              const vStart = Math.abs(parseFloat(videoStream?.start_time || "0"));
+              const aStart = Math.abs(parseFloat(audioStream?.start_time || "0"));
+              const isDesynced = Math.abs(vStart - aStart) > 0.08;
+              const needsAac = aName && aName !== "aac";
 
-                  if (fixRes.status === 0 && fs.existsSync(tempFixed) && fs.statSync(tempFixed).size > 1000) {
-                    fs.unlinkSync(finalPath);
-                    fs.renameSync(tempFixed, finalPath);
-                    console.log("[Audio Guard] Successfully verified universal AAC audio track!");
-                  }
+              // If non-AAC audio OR if audio/video timestamps are drifted OR if trim was performed:
+              if (needsAac || isDesynced || hasTrim) {
+                console.log(`[Audio Guard] Aligning AV sync & Universal AAC (codec: ${aName}, desync: ${isDesynced}, trim: ${hasTrim}) in:`, finalPath);
+                const dir = path.dirname(finalPath);
+                const ext = path.extname(finalPath);
+                const base = path.basename(finalPath, ext);
+                const tempFixed = path.join(dir, `${base}_sync_fixed${ext}`);
+
+                const fixRes = spawnSync(ffmpegBin, [
+                  "-y",
+                  "-i", finalPath,
+                  "-c:v", "copy",
+                  "-c:a", "aac",
+                  "-b:a", "192k",
+                  "-ar", "44100",
+                  "-ac", "2",
+                  "-async", "1",
+                  "-avoid_negative_ts", "make_zero",
+                  "-movflags", "+faststart",
+                  tempFixed,
+                ], { timeout: 300000 });
+
+                if (fixRes.status === 0 && fs.existsSync(tempFixed) && fs.statSync(tempFixed).size > 1000) {
+                  fs.unlinkSync(finalPath);
+                  fs.renameSync(tempFixed, finalPath);
+                  console.log("[Audio Guard] Successfully verified universal AAC synchronized audio track!");
                 }
               }
             }
@@ -665,6 +1186,15 @@ ipcMain.handle("get-version", () => {
   return app.getVersion();
 });
 
+// IPC Handler: Open External URL in system default browser
+ipcMain.handle("open-external", async (event, externalUrl) => {
+  if (externalUrl && (externalUrl.startsWith("http://") || externalUrl.startsWith("https://"))) {
+    await shell.openExternal(externalUrl);
+    return true;
+  }
+  return false;
+});
+
 // State for downloaded update
 let downloadedUpdatePath = null;
 
@@ -688,6 +1218,9 @@ ipcMain.handle("start-in-app-update", async (event, options = {}) => {
   });
 
   if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error("Update release binary is not yet published on GitHub Releases (HTTP 404). Please download the latest installer from the GitHub Releases page.");
+    }
     throw new Error(`Server returned HTTP ${res.status} while downloading update.`);
   }
 

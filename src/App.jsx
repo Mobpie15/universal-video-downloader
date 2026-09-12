@@ -7,6 +7,8 @@ import { DownloadQueue } from "./components/DownloadQueue.jsx";
 import { SettingsModal } from "./components/SettingsModal.jsx";
 import { ErrorReportModal } from "./components/ErrorReportModal.jsx";
 import { UpdatePromptModal } from "./components/UpdatePromptModal.jsx";
+import ShortcutsModal from "./components/ShortcutsModal.jsx";
+import AppInstructions from "./components/AppInstructions.jsx";
 import { extractMedia } from "./engine/extractors/index.js";
 import { universalDownloader } from "./engine/downloader.js";
 import { showToast, readClipboard } from "./engine/nativeBridge.js";
@@ -22,6 +24,7 @@ export default function App() {
   const [downloadQueue, setDownloadQueue] = useState([]);
   const [downloadingFormatId, setDownloadingFormatId] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [reportModalData, setReportModalData] = useState(null);
   const [updatePrompt, setUpdatePrompt] = useState(null);
   // NEW: Track download state for clean single-screen UX
@@ -67,6 +70,77 @@ export default function App() {
     checkStartupUpdate();
   }, []);
 
+  // Global Keyboard Shortcuts (Ctrl+K, Ctrl+V, Ctrl+/, Ctrl+,, Esc, Enter)
+  useEffect(() => {
+    const handleKeyDown = async (e) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA");
+
+      // Esc: Close any active modal
+      if (e.key === "Escape") {
+        setIsSettingsOpen(false);
+        setIsShortcutsOpen(false);
+        setReportModalData(null);
+        setUpdatePrompt(null);
+        return;
+      }
+
+      // Ctrl + / or ?: Open Shortcuts modal
+      if ((e.ctrlKey || e.metaKey) && (e.key === "/" || e.key === "?")) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      // Ctrl + ,: Open Settings modal
+      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        setIsSettingsOpen(true);
+        return;
+      }
+
+      // Ctrl + K or Ctrl + F: Focus URL input
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "k" || e.key.toLowerCase() === "f")) {
+        e.preventDefault();
+        const inputElem = document.querySelector('input[type="url"], input[placeholder*="Paste"]');
+        if (inputElem) {
+          inputElem.focus();
+          inputElem.select();
+        }
+        return;
+      }
+
+      // Ctrl + V (when NOT typing in an input field): Instant paste and analyze
+      if (!isInput && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+        try {
+          const text = await readClipboard();
+          if (text && text.trim().startsWith("http")) {
+            setUrl(text.trim());
+            showToast("Pasted & analyzing link...");
+            setIsLoading(true);
+            setError(null);
+            setMedia(null);
+            try {
+              const extracted = await extractMedia(text.trim());
+              setMedia(extracted);
+              showToast(`Found ${extracted.formats?.length || 0} qualities`);
+            } catch (err) {
+              setError(err.message || "Failed to parse video.");
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        } catch (err) {
+          console.warn("Global paste error:", err);
+        }
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSettingsOpen, isShortcutsOpen, reportModalData, updatePrompt, url]);
+
   const handleFetchMedia = async () => {
     if (!url.trim()) return;
     setIsLoading(true);
@@ -95,26 +169,32 @@ export default function App() {
     }
   };
 
-  const handleDownloadFormat = async (fmt) => {
+  const handleDownloadFormat = async (fmt, trimOptions = {}) => {
     if (!media || !fmt) return;
+    const { startTime, endTime, trimEnabled } = trimOptions;
     const downloadId = `${media.id}-${fmt.formatId}-${Date.now()}`;
     setDownloadingFormatId(fmt.formatId);
     setIsDownloadActive(true);
     setLastDownloadCompleted(false);
 
+    const isImage = Boolean(fmt.isImage || fmt.type === "image" || fmt.ext === "jpg" || fmt.ext === "jpeg" || fmt.ext === "png" || fmt.ext === "webp");
+    const isAudio = !isImage && (!fmt.hasVideo || fmt.type === "audio");
     const safeTitle = media.title.replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 40);
-    const fileName = `${safeTitle}_${fmt.resolution}.${fmt.ext}`;
+    const trimLabel = trimEnabled && (startTime || endTime) ? `_trim_${(startTime || "0000").replace(":", "")}-${(endTime || "").replace(":", "")}` : "";
+    const fileName = `${safeTitle}_${fmt.resolution}${trimLabel}.${fmt.ext || (isImage ? "jpg" : "mp4")}`;
 
     const queueItem = {
       id: downloadId,
-      title: media.title,
+      title: media.title + (trimEnabled ? ` [Clip: ${startTime || "00:00"} - ${endTime}]` : ""),
       fileName,
-      formatLabel: fmt.label || fmt.resolution,
+      formatLabel: (fmt.label || fmt.resolution) + (trimEnabled ? ` (Trimmed ${startTime || "00:00"} - ${endTime})` : ""),
       thumbnail: media.thumbnail || "",
       author: media.author || "",
       duration: media.duration || 0,
       resolution: fmt.resolution,
-      ext: fmt.ext,
+      ext: fmt.ext || (isImage ? "jpg" : "mp4"),
+      isImage,
+      isAudio,
       status: "downloading",
       percent: 0,
       speedMBps: "preparing",
@@ -123,7 +203,7 @@ export default function App() {
     };
 
     setDownloadQueue((prev) => [queueItem, ...prev]);
-    showToast("Download started...");
+    showToast(isImage ? "Saving HD photo..." : trimEnabled ? "Downloading custom video clip..." : "Download started...");
 
     universalDownloader.startDownload({
       id: downloadId,
@@ -131,11 +211,14 @@ export default function App() {
       mediaUrl: url.trim(),
       formatId: fmt.formatId,
       resolution: fmt.resolution,
-      ext: fmt.ext,
-      isAudio: !fmt.hasVideo || fmt.type === "audio",
+      ext: fmt.ext || (isImage ? "jpg" : "mp4"),
+      isAudio,
+      isImage,
       title: media.title,
       fileName,
       totalExpectedBytes: fmt.filesize,
+      startTime: trimEnabled ? startTime : null,
+      endTime: trimEnabled ? endTime : null,
       onProgress: ({ percent, speedMBps, etaSeconds }) => {
         setDownloadQueue((prev) =>
           prev.map((item) =>
@@ -156,7 +239,7 @@ export default function App() {
               : item
           )
         );
-        showToast("Download complete! Saved to device.");
+        showToast(isImage ? "Photo saved to Downloads!" : "Download complete! Saved with full audio.");
       },
       onError: (err) => {
         setDownloadingFormatId(null);
@@ -214,16 +297,7 @@ export default function App() {
     setDownloadingFormatId(null);
   };
 
-  // Go back to format selection for same video
-  const handleDownloadMoreQualities = () => {
-    setIsDownloadActive(false);
-    setLastDownloadCompleted(false);
-    setDownloadingFormatId(null);
-  };
-
-  // Determine if we should show the download panel instead of input+preview
   const hasActiveDownload = downloadQueue.some((i) => i.status === "downloading");
-  const showDownloadPanel = isDownloadActive || hasActiveDownload || lastDownloadCompleted;
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -232,79 +306,111 @@ export default function App() {
         activeTab={activeTab}
         onSelectTab={handleTabSelect}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
         downloadsCount={downloadQueue.length}
       />
 
-      {/* Main Container */}
+      {/* Main Container - Professional Desktop Layout */}
       <main
         style={{
           flex: 1,
-          maxWidth: "920px",
+          maxWidth: "1140px",
           margin: "0 auto",
-          padding: "20px 18px 32px 18px",
+          padding: "24px 20px 36px 20px",
           width: "100%",
           boxSizing: "border-box",
         }}
       >
         {activeTab === "downloader" ? (
           <>
-            {/* Show URL input + Media preview ONLY when NOT in download mode */}
-            {!showDownloadPanel && (
-              <>
-                <UrlInput
-                  url={url}
-                  setUrl={setUrl}
-                  onFetch={handleFetchMedia}
-                  isLoading={isLoading}
-                />
+            {/* Unified Professional Studio Workspace */}
+            <UrlInput
+              url={url}
+              setUrl={setUrl}
+              onFetch={handleFetchMedia}
+              isLoading={isLoading}
+            />
 
-                {/* Error Message Box */}
-                {error && (
-                  <div style={{
-                    padding: "12px 14px",
-                    background: "var(--red-muted)",
-                    border: "1px solid rgba(251, 113, 133, 0.2)",
-                    borderRadius: "var(--radius-md)",
-                    color: "var(--red)",
-                    fontSize: "0.82rem",
-                    marginBottom: "16px",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "10px",
-                  }}>
-                    <span style={{ flex: 1, minWidth: "160px", color: "var(--text-primary)", fontWeight: 500 }}>{error}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <button type="button"
-                        onClick={() => setReportModalData({ errorMessage: error, targetUrl: url.trim(), context: "Extraction" })}
-                        style={{
-                          padding: "5px 12px", borderRadius: "8px",
-                          background: "rgba(251, 113, 133, 0.15)", border: "1px solid rgba(251, 113, 133, 0.25)",
-                          color: "#FFF", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
-                        }}
-                      >
-                        Report Bug
-                      </button>
-                      <button type="button" onClick={() => setError(null)} style={{ color: "var(--red)", padding: "2px" }}>
-                        <CloseIcon size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Video Preview & Format Selection */}
-                <MediaPreview
-                  media={media}
-                  onDownloadFormat={handleDownloadFormat}
-                  downloadingFormatId={downloadingFormatId}
-                />
-              </>
+            {/* Error Message Box */}
+            {error && (
+              <div style={{
+                padding: "12px 16px",
+                background: "var(--red-muted)",
+                border: "1px solid rgba(251, 113, 133, 0.25)",
+                borderRadius: "var(--radius-md)",
+                color: "var(--red)",
+                fontSize: "0.84rem",
+                marginBottom: "18px",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+              }}>
+                <span style={{ flex: 1, minWidth: "160px", color: "var(--text-primary)", fontWeight: 500 }}>{error}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button type="button"
+                    onClick={() => setReportModalData({ errorMessage: error, targetUrl: url.trim(), context: "Extraction" })}
+                    style={{
+                      padding: "5px 12px", borderRadius: "8px",
+                      background: "rgba(251, 113, 133, 0.15)", border: "1px solid rgba(251, 113, 133, 0.25)",
+                      color: "#FFF", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+                    }}
+                  >
+                    Report Bug
+                  </button>
+                  <button type="button" onClick={() => setError(null)} style={{ color: "var(--red)", padding: "2px" }}>
+                    <CloseIcon size={16} />
+                  </button>
+                </div>
+              </div>
             )}
 
-            {/* Download Progress Panel - replaces everything above when active */}
-            {showDownloadPanel && (
-              <>
+            {/* Video Preview with 4K & Trimmer Controls */}
+            {media && (
+              <MediaPreview
+                media={media}
+                onDownloadFormat={handleDownloadFormat}
+                downloadingFormatId={downloadingFormatId}
+              />
+            )}
+
+            {/* App Instructions & Feature Guide (fills blank space with helpful guidance) */}
+            {!media && !isLoading && (
+              <AppInstructions />
+            )}
+
+            {/* Live Downloads Dashboard & Transfer Queue */}
+            {downloadQueue.length > 0 && (
+              <div style={{ marginTop: media ? "28px" : "0" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                  <h3 style={{ fontSize: "0.95rem", fontWeight: 800, color: "#FFFFFF", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span>Active Downloads &amp; History</span>
+                    {hasActiveDownload && (
+                      <span style={{ fontSize: "0.7rem", color: "var(--green)", background: "rgba(52, 211, 153, 0.15)", padding: "2px 8px", borderRadius: "6px" }}>
+                        Downloading
+                      </span>
+                    )}
+                  </h3>
+                  {media && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadAnother}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "8px",
+                        fontSize: "0.74rem",
+                        fontWeight: 700,
+                        background: "rgba(255, 255, 255, 0.06)",
+                        color: "var(--text-secondary)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Download Another Video
+                    </button>
+                  )}
+                </div>
+
                 <DownloadQueue
                   items={downloadQueue}
                   onCancelDownload={handleCancelDownload}
@@ -312,56 +418,11 @@ export default function App() {
                   onDeleteItem={handleDeleteItem}
                   isFullView={false}
                 />
-
-                {/* Action buttons after download completes */}
-                {lastDownloadCompleted && !hasActiveDownload && (
-                  <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
-                    <button type="button" onClick={handleDownloadAnother}
-                      className="animate-glow"
-                      style={{
-                        flex: 1, padding: "13px 16px", borderRadius: "var(--radius-lg)",
-                        background: "var(--accent-gradient)", color: "#FFF",
-                        fontWeight: 700, fontSize: "0.88rem",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                        border: "none", cursor: "pointer",
-                      }}
-                    >
-                      <DownloadIcon size={16} />
-                      <span>Download Another</span>
-                    </button>
-                    {media && (
-                      <button type="button" onClick={handleDownloadMoreQualities}
-                        style={{
-                          flex: 1, padding: "13px 16px", borderRadius: "var(--radius-lg)",
-                          background: "var(--accent-muted)",
-                          border: "1px solid rgba(139, 92, 246, 0.25)",
-                          color: "var(--accent-light)", fontWeight: 700, fontSize: "0.88rem",
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <RefreshIcon size={16} />
-                        <span>More Qualities</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Show download history on home when not in download mode */}
-            {!showDownloadPanel && (
-              <DownloadQueue
-                items={downloadQueue}
-                onCancelDownload={handleCancelDownload}
-                onClearCompleted={handleClearCompleted}
-                onDeleteItem={handleDeleteItem}
-                isFullView={false}
-              />
+              </div>
             )}
           </>
         ) : (
-          /* "My Files" Library Tab */
+          /* "Media Vault" Full Library Tab */
           <DownloadQueue
             items={downloadQueue}
             onCancelDownload={handleCancelDownload}
@@ -400,6 +461,12 @@ export default function App() {
         isOpen={Boolean(updatePrompt)}
         onClose={() => setUpdatePrompt(null)}
         updateInfo={updatePrompt}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <ShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = "1.2.5";
+export const CURRENT_VERSION = "1.3.0";
 export const VERSION_URL = "https://raw.githubusercontent.com/Mobpie15/universal-video-downloader/main/version.json";
 
 export const compareVersions = (v1, v2) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { DownloadIcon, CloseIcon, SparklesIcon, RefreshIcon, CheckIcon } from "./icons/Icons.jsx";
+import { DownloadIcon, CloseIcon, SparklesIcon, RefreshIcon, CheckIcon, GlobeIcon } from "./icons/Icons.jsx";
 
 export const UpdatePromptModal = ({ isOpen, onClose, updateInfo }) => {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -179,7 +179,35 @@ export const UpdatePromptModal = ({ isOpen, onClose, updateInfo }) => {
             fontSize: "0.76rem",
             color: "var(--red)",
           }}>
-            {error}
+            <div style={{ marginBottom: updateInfo?.releasesPage ? "6px" : "0" }}>{error}</div>
+            {updateInfo?.releasesPage && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.electronAPI?.openExternal) {
+                    window.electronAPI.openExternal(updateInfo.releasesPage);
+                  } else {
+                    window.open(updateInfo.releasesPage, "_system");
+                  }
+                }}
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: "6px",
+                  background: "rgba(255, 255, 255, 0.12)",
+                  color: "#FFFFFF",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <GlobeIcon size={13} />
+                <span>Open Releases Page</span>
+              </button>
+            )}
           </div>
         )}
 

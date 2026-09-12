@@ -8,6 +8,7 @@ export const detectPlatform = (url) => {
   if (!url || typeof url !== "string") return "unknown";
   const lower = url.toLowerCase().trim();
 
+  if (lower.startsWith("@")) return "instagram";
   if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
   if (lower.includes("instagram.com")) return "instagram";
   if (lower.includes("tiktok.com")) return "tiktok";
@@ -19,6 +20,8 @@ export const detectPlatform = (url) => {
 };
 
 export const extractMedia = async (url) => {
+  const platform = detectPlatform(url);
+
   // If running in Desktop App, use native high-performance engine for all sites
   if (typeof window !== "undefined" && window.electronAPI && typeof window.electronAPI.extractMedia === "function") {
     try {
@@ -27,11 +30,12 @@ export const extractMedia = async (url) => {
         return desktopResult;
       }
     } catch (e) {
-      console.warn("Desktop native extraction fallback to web extractors:", e);
+      console.warn("Desktop native extraction fallback to web extractors:", e.message);
+      if (e.message && (e.message.includes("unavailable") || e.message.includes("private"))) {
+        throw e;
+      }
     }
   }
-
-  const platform = detectPlatform(url);
 
   switch (platform) {
     case "youtube":

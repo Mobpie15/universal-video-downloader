@@ -1,12 +1,12 @@
 {
-  "version": "1.2.5",
-  "versionCode": 9,
-  "releaseDate": "2026-09-07",
-  "title": "Pie Video Downloader v1.2.5 - Universal AAC Audio Codec & Sound Fix",
-  "releaseNotes": "Fixed audio playback issues across Windows Media Player, Movies & TV, Android, and iOS by enforcing universal AAC-LC stereo audio encoding. Eliminated silent/muted video playback caused by incompatible Opus codec inside MP4 containers.",
-  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader-Setup-1.2.5.exe",
-  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader-Setup-1.2.5.exe",
-  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader-1.2.5.exe",
-  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.2.5/Pie-Video-Downloader.apk",
-  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.2.5"
+  "version": "1.3.0",
+  "versionCode": 12,
+  "releaseDate": "2026-09-12",
+  "title": "Pie Video Downloader v1.3.0 - Studio Redesign & Trimmer Sync Fix",
+  "releaseNotes": "• Video Trimmer 0ms Audio-Video Sync Guard (eliminates drift)\n• Instagram All-in-One Studio (Full-HD 1080x1080 DP, Private Stories, Highlights, Carousels)\n• Modern SVG vector icons (all emojis replaced)\n• Home page quickstart instructions and feature guide\n• Enhanced TikTok no-watermark and Facebook HD extractors",
+  "downloadUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.3.0/Pie-Video-Downloader-Setup-1.3.0.exe",
+  "windowsInstallerUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.3.0/Pie-Video-Downloader-Setup-1.3.0.exe",
+  "windowsPortableUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.3.0/Pie-Video-Downloader-1.3.0.exe",
+  "apkUrl": "https://github.com/Mobpie15/universal-video-downloader/releases/download/v1.3.0/Pie-Video-Downloader.apk",
+  "releasesPage": "https://github.com/Mobpie15/universal-video-downloader/releases/tag/v1.3.0"
 }

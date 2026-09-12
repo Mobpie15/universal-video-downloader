@@ -16,9 +16,12 @@ export class Downloader {
     resolution,
     ext,
     isAudio,
+    isImage,
     title,
     fileName,
     totalExpectedBytes,
+    startTime,
+    endTime,
     onProgress, // ({ percent, speedMBps, etaSeconds, downloadedBytes, totalBytes })
     onComplete, // ({ success, path })
     onError,    // (error)
@@ -51,13 +54,16 @@ export class Downloader {
       try {
         const result = await window.electronAPI.downloadMedia({
           id,
-          url: mediaUrl || url,
+          url: (isImage ? url : mediaUrl) || url,
           formatId,
           resolution,
           ext,
           isAudio,
+          isImage,
           title,
           fileName,
+          startTime,
+          endTime,
         });
 
         if (cleanupProgress) cleanupProgress();
@@ -110,9 +116,11 @@ export class Downloader {
           body: JSON.stringify({
             url: mediaUrl || url,
             mode: isAudio ? "audio" : "video",
-            quality: resolution ? resolution.replace(/[^0-9]/g, "") || "720" : "720",
+            quality: resolution ? resolution.replace(/[^0-9]/g, "") || "1080" : "1080",
             audioFormat: "mp3",
             audioBitrate: "320",
+            startTime: startTime || null,
+            endTime: endTime || null,
           }),
           signal: controller.signal,
         });
@@ -140,9 +148,9 @@ export class Downloader {
       }
     }
 
-    const startTime = Date.now();
+    const transferStartTime = Date.now();
     let downloadedBytes = 0;
-    let lastTime = startTime;
+    let lastTime = transferStartTime;
     let lastBytes = 0;
     let currentSpeedMBps = 0;
 
@@ -203,7 +211,8 @@ export class Downloader {
       }
 
       // Concatenate received chunks into Blob with proper MIME type
-      const mimeType = isAudio ? "audio/mpeg" : "video/mp4";
+      const isImg = isImage || ext === "jpg" || ext === "jpeg" || ext === "png" || ext === "webp";
+      const mimeType = isAudio ? "audio/mpeg" : isImg ? (ext === "png" ? "image/png" : "image/jpeg") : "video/mp4";
       const blob = new Blob(chunks, { type: mimeType });
       const blobUrl = URL.createObjectURL(blob);
       const cleanFileName = fileName.replace(/[\\/*?:"<>|]/g, "_");

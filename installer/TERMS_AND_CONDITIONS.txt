@@ -1,0 +1,48 @@
+﻿================================================================================
+           PIE VIDEO DOWNLOADER - END USER LICENSE AGREEMENT & TERMS
+================================================================================
+
+Please read the following license agreement and terms of service carefully before
+proceeding with the installation of Pie Video Downloader.
+
+1. ACCEPTANCE OF TERMS
+By selecting "I accept the terms of the License Agreement" and proceeding with the
+installation, you acknowledge that you have read, understood, and agree to be bound
+by the terms and conditions outlined in this document.
+
+2. PURPOSE AND PERMITTED FAIR-USE
+Pie Video Downloader is a multimedia productivity software designed strictly for:
+- Personal archiving and offline access to digital content you own.
+- Educational, research, and non-commercial fair-use reference.
+- Downloading public domain, Creative Commons (CC-BY), or authorized content.
+
+3. COPYRIGHT AND INTELLECTUAL PROPERTY POLICY
+- Users are strictly prohibited from downloading, duplicating, distributing, or
+  exploiting copyrighted multimedia content without express permission from the
+  respective copyright holder.
+- All trademarks, logos, service marks, and proprietary rights belonging to
+  YouTube, Google LLC, Meta Platforms, ByteDance, X Corp, and other platforms
+  remain the exclusive property of their respective owners.
+- The developers of Pie Video Downloader do not host, store, or promote the
+  infringement of copyrighted material. You assume 100% legal responsibility for
+  the content accessed through this software.
+
+4. USER CONDUCT & INDEMNIFICATION
+You agree to use this application in full compliance with all applicable local,
+national, and international copyright laws. You agree to indemnify and hold
+harmless the software developers from any claims, damages, or legal liabilities
+arising from unauthorized or unlawful use.
+
+5. DISCLAIMER OF WARRANTIES
+Pie Video Downloader is provided on an "AS IS" and "AS AVAILABLE" basis without
+warranties of any kind, either express or implied, including but not limited to
+uninterrupted service or third-party platform API compatibility.
+
+6. SHORTCUTS & DESKTOP INTEGRATION
+During installation, shortcuts will be registered on your Windows Desktop and
+in the Windows Start Menu to allow quick access via Windows Search. You may
+remove these shortcuts at any time via the Start Menu or Control Panel Uninstaller.
+
+--------------------------------------------------------------------------------
+By clicking "I accept the terms of the License Agreement", you agree to all terms above.
+================================================================================

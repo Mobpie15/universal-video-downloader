@@ -1,41 +1,148 @@
 /**
- * High-Performance Instagram Reels & Video Extractor
- * Tier 1: Polaris SJS Web Page Scraper (Direct FB CDN MP4 streams with CORS enabled)
- * Tier 2: Embed Page Parser Fallback
- * Tier 3: Direct mobile JSON API (?__a=1&__d=dis)
+ * Universal Instagram Suite Extractor
+ * Supports:
+ * - Profile Picture (DP) in Full HD (1080x1080)
+ * - Instagram Stories & Highlights
+ * - Instagram Reels, Videos & Posts
+ * - Carousel Multi-Photo & Video items
+ * - Studio MP3 Audio (320 kbps) extraction for all video media
  */
 
+const cleanUrl = (u) => {
+  if (!u) return "";
+  return u
+    .replace(/\\u0026/g, "&")
+    .replace(/\\\//g, "/")
+    .replace(/\\/g, "");
+};
+
 export const extractInstagram = async (url) => {
-  // Extract Shortcode from /reel/, /p/, /tv/, or /reels/
-  const regex = /(?:instagram\.com\/(?:p|reel|tv|reels)\/)([\w-]+)/i;
-  const match = url.match(regex);
-  if (!match || !match[1]) {
-    throw new Error("Invalid Instagram link. Please enter a valid Reel or Post URL.");
+  if (!url || typeof url !== "string") {
+    throw new Error("Please provide a valid Instagram link or username.");
   }
-  const shortcode = match[1];
+  const raw = url.trim();
 
-  // Helper to clean escaped strings from Instagram scripts
-  const cleanUrl = (u) => {
-    if (!u) return "";
-    return u
-      .replace(/\\u0026/g, "&")
-      .replace(/\\\//g, "/")
-      .replace(/\\/g, "");
-  };
+  // 1. Check if Desktop Electron Native Engine is available
+  if (typeof window !== "undefined" && window.electronAPI && typeof window.electronAPI.extractMedia === "function") {
+    try {
+      const desktopResult = await window.electronAPI.extractMedia(raw);
+      if (desktopResult && desktopResult.formats && desktopResult.formats.length > 0) {
+        return desktopResult;
+      }
+    } catch (desktopErr) {
+      console.warn("Desktop native extraction fell back to web extractors:", desktopErr.message);
+      if (
+        desktopErr.message &&
+        (desktopErr.message.includes("private") || desktopErr.message.includes("credentials") || desktopErr.message.includes("unavailable"))
+      ) {
+        throw desktopErr;
+      }
+    }
+  }
 
-  // Tier 1: Polaris SJS Web Page Scraper
+  // 2. Classify Instagram Request Type
+  const isProfile =
+    raw.startsWith("@") ||
+    (!raw.includes("/reel/") &&
+      !raw.includes("/p/") &&
+      !raw.includes("/stories/") &&
+      !raw.includes("/tv/") &&
+      (raw.includes("instagram.com/") || (!raw.includes(".") && !raw.includes("/"))));
+
+  const isStory = raw.includes("/stories/") && !raw.includes("/highlights/");
+  const isHighlight = raw.includes("/stories/highlights/");
+
+  // ── Handler A: Instagram Profile Picture (DP) Extractor ──
+  if (isProfile) {
+    const username = raw
+      .replace(/^@/, "")
+      .replace(/^https?:\/\/(www\.)?instagram\.com\//, "")
+      .split("/")[0]
+      .split("?")[0]
+      .trim();
+
+    if (!username) throw new Error("Please enter a valid Instagram username or profile link.");
+
+    try {
+      const profileUrl = `https://www.instagram.com/${username}/`;
+      const res = await fetch(profileUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: AbortSignal.timeout(7000),
+      });
+
+      if (res.ok) {
+        const html = await res.text();
+        const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+        const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+        const ogDescMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
+
+        const avatarUrl = ogImageMatch ? cleanUrl(ogImageMatch[1]) : "";
+        const title = ogTitleMatch ? ogTitleMatch[1] : `@${username}`;
+        const desc = ogDescMatch ? ogDescMatch[1] : "";
+
+        if (avatarUrl) {
+          return {
+            platform: "instagram",
+            subType: "dp",
+            id: `ig-dp-${username}`,
+            title: `${title} - Instagram DP`,
+            author: `@${username}`,
+            description: desc,
+            duration: 0,
+            thumbnail: avatarUrl,
+            formats: [
+              {
+                formatId: `ig-dp-hd`,
+                resolution: "1080p Full HD Avatar",
+                ext: "jpg",
+                url: avatarUrl,
+                isImage: true,
+                hasVideo: false,
+                hasAudio: false,
+                type: "image",
+                label: "Download Full HD Profile Picture (1080x1080 JPG)",
+              },
+            ],
+          };
+        }
+      }
+    } catch (dpErr) {
+      console.warn("Profile DP web scraper error:", dpErr.message);
+    }
+
+    throw new Error(
+      `Unable to fetch profile for @${username}. Please check if the username is spelled correctly or if the profile is accessible.`
+    );
+  }
+
+  // ── Handler B: Stories & Highlights ──
+  if (isStory || isHighlight) {
+    throw new Error(
+      "Instagram Stories & Highlights are protected by Instagram's session security. Please use the Desktop App and connect your account in Settings to download stories."
+    );
+  }
+
+  // ── Handler C: Reels & Posts ──
+  const postMatch = raw.match(/(?:instagram\.com\/(?:p|reel|tv|reels)\/)([\w-]+)/i);
+  if (!postMatch || !postMatch[1]) {
+    throw new Error("Invalid Instagram link. Please enter a valid Reel, Post, Story, or @username link.");
+  }
+  const shortcode = postMatch[1];
+
+  // Strategy 1: Polaris SJS Web Page Scraper
   try {
     const postUrl = `https://www.instagram.com/p/${shortcode}/`;
     const res = await fetch(postUrl, {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
         "Accept":
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
       },
       signal: AbortSignal.timeout(8000),
     });
@@ -81,22 +188,35 @@ export const extractInstagram = async (url) => {
                   if (vUrl && !seenUrls.has(vUrl)) {
                     seenUrls.add(vUrl);
                     const isHD = i === 0 || (v.width && v.width >= 720);
-                    const resolutionLabel = isHD ? "HD Quality" : "Data Saver (SD)";
+                    const resLabel = isHD ? "1080p HD" : "720p Standard";
 
                     formats.push({
                       formatId: `ig-stream-${i + 1}`,
-                      resolution: resolutionLabel,
+                      resolution: resLabel,
                       ext: "mp4",
                       url: vUrl,
                       hasAudio: true,
                       hasVideo: true,
                       type: "video",
-                      label: `Instagram MP4 Video (${resolutionLabel})`,
+                      label: `Instagram MP4 Video (${resLabel})`,
                     });
                   }
                 }
 
+                // Add 320kbps MP3 Audio extraction format
                 if (formats.length > 0) {
+                  formats.push({
+                    formatId: `ig-audio-320`,
+                    resolution: "320kbps",
+                    ext: "mp3",
+                    url: formats[0].url,
+                    isAudio: true,
+                    hasAudio: true,
+                    hasVideo: false,
+                    type: "audio",
+                    label: "Studio MP3 Audio (320 kbps)",
+                  });
+
                   const thumb =
                     cleanUrl(media.image_versions2?.candidates?.[0]?.url) ||
                     cleanUrl(media.display_url) ||
@@ -121,55 +241,22 @@ export const extractInstagram = async (url) => {
                   };
                 }
               }
-            } catch (e) {
-              // try next tag
-            }
+            } catch (e) {}
           }
         }
-      }
-
-      // Regex fallback directly on HTML
-      const videoMatch = html.match(/"video_versions":\s*\[\s*\{[^}]*"url":\s*"([^"]+)"/);
-      if (videoMatch && videoMatch[1]) {
-        const directUrl = cleanUrl(videoMatch[1]);
-        const thumbMatch = html.match(/"image_versions2":\s*\{\s*"candidates":\s*\[\s*\{[^}]*"url":\s*"([^"]+)"/);
-        const thumb = thumbMatch ? cleanUrl(thumbMatch[1]) : "";
-        const captionMatch = html.match(/"caption":\s*\{\s*"text":\s*"([^"]+)"/);
-        const caption = captionMatch ? captionMatch[1] : `Instagram Reel ${shortcode}`;
-
-        return {
-          platform: "instagram",
-          id: shortcode,
-          title: caption.slice(0, 75).trim() || `Instagram Reel ${shortcode}`,
-          author: "Instagram Creator",
-          duration: 0,
-          thumbnail: thumb,
-          formats: [
-            {
-              formatId: "ig-hd",
-              resolution: "HD (Original)",
-              ext: "mp4",
-              url: directUrl,
-              hasAudio: true,
-              hasVideo: true,
-              type: "video",
-              label: "Instagram MP4 Video (HD)",
-            },
-          ],
-        };
       }
     }
   } catch (err) {
     console.warn("Polaris scraper failed, trying embed fallback:", err.message);
   }
 
-  // Tier 2: Public Embed Page Scraping Fallback
+  // Strategy 2: Public Embed Page Scraping Fallback
   try {
     const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
     const embedRes = await fetch(embedUrl, {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
       },
       signal: AbortSignal.timeout(6000),
     });
@@ -193,13 +280,24 @@ export const extractInstagram = async (url) => {
           formats: [
             {
               formatId: "ig-embed",
-              resolution: "Original Video",
+              resolution: "Original HD Video",
               ext: "mp4",
               url: directUrl,
               hasAudio: true,
               hasVideo: true,
               type: "video",
-              label: "Instagram MP4 Video",
+              label: "Instagram MP4 Video (HD)",
+            },
+            {
+              formatId: "ig-audio-320",
+              resolution: "320kbps",
+              ext: "mp3",
+              url: directUrl,
+              isAudio: true,
+              hasAudio: true,
+              hasVideo: false,
+              type: "audio",
+              label: "Studio MP3 Audio (320 kbps)",
             },
           ],
         };
@@ -209,58 +307,7 @@ export const extractInstagram = async (url) => {
     console.warn("Embed scraping failed:", e.message);
   }
 
-  // Tier 3: Direct mobile JSON API
-  try {
-    const apiUrl = `https://www.instagram.com/p/${shortcode}/?__a=1&__d=dis`;
-    const response = await fetch(apiUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-        "Accept": "*/*",
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (response.ok) {
-      const json = await response.json();
-      const item = json.graphql?.shortcode_media || json.items?.[0];
-      if (item) {
-        const videoUrl = item.video_url || item.video_versions?.[0]?.url;
-        const thumbnail = item.display_url || item.image_versions2?.candidates?.[0]?.url;
-        const caption =
-          item.edge_media_to_caption?.edges?.[0]?.node?.text ||
-          item.caption?.text ||
-          `Instagram Reel ${shortcode}`;
-
-        if (videoUrl) {
-          return {
-            platform: "instagram",
-            id: shortcode,
-            title: caption.slice(0, 75).trim() || `Instagram Reel ${shortcode}`,
-            author: item.owner?.username ? `@${item.owner.username}` : "Instagram Creator",
-            duration: item.video_duration ? Math.round(item.video_duration) : 0,
-            thumbnail: cleanUrl(thumbnail),
-            formats: [
-              {
-                formatId: "ig-direct",
-                resolution: "HD (Original)",
-                ext: "mp4",
-                url: cleanUrl(videoUrl),
-                hasAudio: true,
-                hasVideo: true,
-                type: "video",
-                label: "Instagram MP4 Video (HD)",
-              },
-            ],
-          };
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Direct API fallback failed:", err.message);
-  }
-
   throw new Error(
-    "Instagram is currently requiring login authentication for this Reel. Please check if the link is public in your browser, or try YouTube, TikTok, Facebook, or Twitter videos."
+    "Instagram is requiring authentication or this reel is private. Please verify the link is public or use the Desktop App with 'Connect Instagram' enabled."
   );
 };

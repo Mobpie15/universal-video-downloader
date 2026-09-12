@@ -2,7 +2,7 @@ import React from "react";
 import { SettingsIcon, LibraryIcon, DownloadIcon } from "./icons/Icons.jsx";
 import appLogo from "../assets/logo.png";
 
-export const Navbar = ({ onOpenSettings, activeTab = "downloader", onSelectTab, downloadsCount = 0 }) => {
+export const Navbar = ({ onOpenSettings, onOpenShortcuts, activeTab = "downloader", onSelectTab, downloadsCount = 0 }) => {
   return (
     <header
       style={{
@@ -210,6 +210,31 @@ export const Navbar = ({ onOpenSettings, activeTab = "downloader", onSelectTab, 
             </span>
           </div>
 
+          {/* Shortcuts Trigger */}
+          <button
+            type="button"
+            onClick={onOpenShortcuts}
+            style={{
+              height: "36px",
+              padding: "0 10px",
+              borderRadius: "11px",
+              background: "rgba(25, 25, 32, 0.8)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              color: "var(--text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              cursor: "pointer",
+              fontSize: "0.78rem",
+              fontWeight: 600,
+              transition: "all 0.18s ease",
+            }}
+            title="Keyboard Shortcuts (Ctrl+/)"
+          >
+            <span>⌨️</span>
+            <span className="desktop-only">Shortcuts</span>
+          </button>
+
           {/* Settings Trigger */}
           <button
             type="button"
@@ -227,7 +252,7 @@ export const Navbar = ({ onOpenSettings, activeTab = "downloader", onSelectTab, 
               cursor: "pointer",
               transition: "all 0.18s ease",
             }}
-            title="Settings & Config"
+            title="Settings & Config (Ctrl+,)"
           >
             <SettingsIcon size={17} />
           </button>
